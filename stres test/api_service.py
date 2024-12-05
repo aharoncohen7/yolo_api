@@ -33,6 +33,7 @@ async def main():
     try:
         for i in range(100):
             a = await send_request_to_endpoint(api_url, payload)
+            print(i)
             print(f"Response {i}: {a}")
     except ValueError as e:
         print(f"Error: {e}")

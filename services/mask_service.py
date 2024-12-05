@@ -38,11 +38,12 @@ class MaskService:
 
             # Return the mask based on the 'is_focus' flag
             combined_mask = mask_regions if is_focus else 1 - mask_regions
-            print(combined_mask)
-        else:
-            combined_mask = []
 
-        return combined_mask
+            print(combined_mask)
+
+            return combined_mask
+
+        return []
 
     @staticmethod
     def get_detections_on_mask(
@@ -57,68 +58,32 @@ class MaskService:
         :param mask: Binary mask to check against.
         :return: List of detections whose center is inside the mask.
         """
+
         if isinstance(mask, np.ndarray):
             ret_detections = []
+            img_y, img_x = shape[:2]
 
             for detect in detections:
                 # Calculate the center of each detection
-                center_x = int((detect.bbox.x1 + detect.bbox.x2) / 2)
-                center_y = int((detect.bbox.y1 + detect.bbox.y2) / 2)
+                x1, x2, y1, y2 = detect.bbox.x1, detect.bbox.x2, detect.bbox.y1, detect.bbox.y2
+
+                points = [
+                    (int(x*img_x), int(y*img_y))
+                    for i, x in enumerate([x1, (x1 + x2) // 2, x2])
+                    for j, y in enumerate([y1, (y1 + y2) // 2, y2])
+                    # שולל קצוות
+                    if not (i + j) % 2 == 0
+                ]
 
                 # If the center is inside the mask, keep the detection
-                if mask[center_y, center_x] == 0:
+                if not any(mask[y, x] > 0 for x, y in points):
                     continue
 
-                # Convert bounding box to relative coordinates based on mask size
-                detect.bbox = MaskService._convert_pixels_relative_to_image_shape(
-                    detect.bbox,
-                    shape[1],
-                    shape[0]
-                )
                 ret_detections.append(detect)
 
             return ret_detections
-        else:
-            return MaskService.convert_bbox(detections, shape)
 
-    @staticmethod
-    def convert_bbox(detections: List[Detection], shape: List[int]) -> List[Detection]:
-        """
-        Converts the bounding box coordinates of detections to relative values based on image shape.
-
-        :param detections: List of detection objects.
-        :param shape: Image shape (height, width).
-        :return: List of detections with converted bounding boxes.
-        """
-        ret_detections = []
-
-        for detect in detections:
-            # Convert the bounding box to relative coordinates
-            detect.bbox = MaskService._convert_pixels_relative_to_image_shape(
-                detect.bbox,
-                shape[1],
-                shape[0]
-            )
-            ret_detections.append(detect)
-
-        return ret_detections
-
-    @staticmethod
-    def _convert_pixels_relative_to_image_shape(bbox: Xyxy, image_x: int, image_y: int):
-        """
-        Converts bounding box coordinates from pixel values to relative values.
-
-        :param bbox: Bounding box in pixel coordinates.
-        :param image_x: Width of the image.
-        :param image_y: Height of the image.
-        :return: Normalized bounding box in relative coordinates.
-        """
-        return Xyxy(
-            x1=round(bbox.x1 / image_x, 3),
-            x2=round(bbox.x2 / image_x, 3),
-            y1=round(bbox.y1 / image_y, 3),
-            y2=round(bbox.y2 / image_y, 3)
-        )
+        return detections
 
     @staticmethod
     def accumulate_motion(prev_diff, current_diff, alpha=0.5):
@@ -130,9 +95,6 @@ class MaskService:
         :param alpha: Weight for the previous frame's difference in the blend.
         :return: Accumulated motion.
         """
-        if prev_diff.shape != current_diff.shape:
-            raise ValueError(
-                "Shape mismatch between previous and current differences.")
         # Blend the two frame differences
         return cv2.addWeighted(prev_diff.astype(np.float32), alpha, current_diff.astype(np.float32), 1 - alpha, 0)
 
@@ -258,7 +220,7 @@ class MaskService:
             # Print each detection's details
             for j, det in enumerate(image_detections, 1):
                 print(f"{" " * B}| {f'{j}. {det.class_name}':^{F}}|{
-                      f'{det.confidence:.3f} %':^{S}}|{f'{det.bbox}':^{L}}|")
+                      f'{det.confidence:.3f}':^{S}}|{f'{det.bbox}':^{L}}|")
 
             print(divider)
 
@@ -350,3 +312,42 @@ class MaskService:
     #         print(divider)
 
     #     print()
+
+    # @staticmethod
+    # def convert_bbox(detections: List[Detection], shape: List[int]) -> List[Detection]:
+    #     """
+    #     Converts the bounding box coordinates of detections to relative values based on image shape.
+
+    #     :param detections: List of detection objects.
+    #     :param shape: Image shape (height, width).
+    #     :return: List of detections with converted bounding boxes.
+    #     """
+    #     ret_detections = []
+
+    #     for detect in detections:
+    #         # Convert the bounding box to relative coordinates
+    #         detect.bbox = MaskService._convert_pixels_relative_to_image_shape(
+    #             detect.bbox,
+    #             shape[1],
+    #             shape[0]
+    #         )
+    #         ret_detections.append(detect)
+
+    #     return ret_detections
+
+    # @staticmethod
+    # def _convert_pixels_relative_to_image_shape(bbox: Xyxy, image_x: int, image_y: int):
+    #     """
+    #     Converts bounding box coordinates from pixel values to relative values.
+
+    #     :param bbox: Bounding box in pixel coordinates.
+    #     :param image_x: Width of the image.
+    #     :param image_y: Height of the image.
+    #     :return: Normalized bounding box in relative coordinates.
+    #     """
+    #     return Xyxy(
+    #         x1=round(bbox.x1 / image_x, 3),
+    #         x2=round(bbox.x2 / image_x, 3),
+    #         y1=round(bbox.y1 / image_y, 3),
+    #         y2=round(bbox.y2 / image_y, 3)
+    #     )

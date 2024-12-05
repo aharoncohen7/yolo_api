@@ -105,25 +105,25 @@ class YoloService:
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(self._executor, self._run_model, YoloData(image=image, confidence=confidence, classes=classes))
 
-            detections = await loop.run_in_executor(self._executor, self._apply_mask_filter, results.xyxy[0])
+            detections = await loop.run_in_executor(self._executor, self._extract_detections, results.xyxy[0], image.shape)
             return detections
         except Exception as e:
             print(f"Error in YOLO detection: {str(e)}")
             traceback.print_exc()
             raise
 
-    def _apply_mask_filter(self, predictions) -> List[Detection] | List:
+    def _extract_detections(self, predictions, shape: tuple[int]) -> List[Detection] | List:
         """Applies post-processing on predictions to generate detections."""
         detections = []
+        img_y, img_x = shape[:2]
 
         for det in predictions:
             try:
-                x1, y1, x2, y2 = map(int, det[:4])
-                confidence = float(det[4])
-                class_id = int(det[5])
+                x1, y1, x2, y2, confidence, class_id = det[:6].tolist()
 
                 detections.append(Detection(
-                    bbox=Xyxy(x1=x1, y1=y1, x2=x2, y2=y2),
+                    bbox=Xyxy(x1=x1/img_x, y1=y1/img_y,
+                              x2=x2/img_x, y2=y2/img_y),
                     confidence=confidence,
                     class_id=class_id,
                     class_name=self.model.names[class_id])
