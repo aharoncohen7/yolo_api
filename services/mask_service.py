@@ -219,8 +219,8 @@ class MaskService:
 
             # Print each detection's details
             for j, det in enumerate(image_detections, 1):
-                print(f"{" " * B}| {f'{j}. {det.class_name}':^{F}}|{
-                      f'{det.confidence:.3f}':^{S}}|{f'{det.bbox}':^{L}}|")
+                print(f"{" " * B}| {f'   {j}. {det.class_name}':<{F}}|{
+                      f'{det.confidence}':^{S}}|{f'{det.bbox}':^{L}}|")
 
             print(divider)
 
