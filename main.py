@@ -1,9 +1,9 @@
-import os
-import hmac
+# import os
+# import hmac
 import uvicorn
-import hashlib
-import subprocess
+# import hashlib
 import numpy as np
+# import subprocess
 from typing import Dict, Optional, Union
 from fastapi import FastAPI, HTTPException, Query, Request
 
@@ -35,49 +35,49 @@ async def startup_event():
     await yolo_service.initialize()
 
 
-@app.post("/webhook")
-async def github_webhook(request: Request):
-    # Extract GitHub signature
-    github_signature = request.headers.get("X-Hub-Signature-256")
-    if not github_signature:
-        raise HTTPException(status_code=400, detail="Missing signature header")
+# @app.post("/webhook")
+# async def github_webhook(request: Request):
+#     # Extract GitHub signature
+#     github_signature = request.headers.get("X-Hub-Signature-256")
+#     if not github_signature:
+#         raise HTTPException(status_code=400, detail="Missing signature header")
 
-    webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
+#     webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
 
-    # Read payload
-    payload = await request.body()
+#     # Read payload
+#     payload = await request.body()
 
-    # Calculate expected signature
-    secret = webhook_secret.encode()
-    expected_signature = "sha256=" + hmac.new(
-        key=secret, msg=payload, digestmod=hashlib.sha256
-    ).hexdigest()
+#     # Calculate expected signature
+#     secret = webhook_secret.encode()
+#     expected_signature = "sha256=" + hmac.new(
+#         key=secret, msg=payload, digestmod=hashlib.sha256
+#     ).hexdigest()
 
-    # Validate signature
-    if not hmac.compare_digest(github_signature, expected_signature):
-        raise HTTPException(status_code=403, detail="Invalid signature")
+#     # Validate signature
+#     if not hmac.compare_digest(github_signature, expected_signature):
+#         raise HTTPException(status_code=403, detail="Invalid signature")
 
-    # Execute deployment steps
-    try:
-        # Pull latest changes
-        subprocess.run(["git", "pull", "origin", "master"], check=True)
+#     # Execute deployment steps
+#     try:
+#         # Pull latest changes
+#         subprocess.run(["git", "pull", "origin", "master"], check=True)
 
-        # Activate virtual environment
-        subprocess.run(["source", "venv/bin/activate"], shell=True, check=True)
+#         # Activate virtual environment
+#         subprocess.run(["source", "venv/bin/activate"], shell=True, check=True)
 
-        # Install dependencies
-        subprocess.run(
-            ["pip", "install", "-r", "requirements.txt"], shell=True, check=True)
+#         # Install dependencies
+#         subprocess.run(
+#             ["pip", "install", "-r", "requirements.txt"], shell=True, check=True)
 
-        # # Restart application
-        subprocess.run(["sudo", "systemctl", "restart",
-                       "yolo_api"], check=True)
+#         # # Restart application
+#         subprocess.run(["sudo", "systemctl", "restart",
+#                        "yolo_api"], check=True)
 
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(
-            status_code=500, detail=f"Deployment failed: {str(e)}")
+#     except subprocess.CalledProcessError as e:
+#         raise HTTPException(
+#             status_code=500, detail=f"Deployment failed: {str(e)}")
 
-    return {"status": "Deployment successful"}
+#     return {"status": "Deployment successful"}
 
 
 @app.post("/yolo-detect/single", response_model=AlertResponse)
@@ -370,12 +370,13 @@ async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Op
 
 if __name__ == "__main__":
     """
-    Run the FastAPI application with Uvicorn server for production
+    Run the FastAPI application with Uvicorn server for development
+    For production run with Gunicorn on ubuntu system or server
     """
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",  # Listen on all network interfaces
+        host="127.0.0.1",
         port=8000,
-        workers=1,  # Use multiple workers
-        reload=True  # Disable reload in production
+        workers=1,
+        reload=True
     )
