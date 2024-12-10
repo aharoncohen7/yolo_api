@@ -11,7 +11,7 @@ async def send_request_to_endpoint(api_url: str, payload: Dict) -> Optional[Dict
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=10), connector=connector
         ) as session:
-            async with session.post(api_url, json=payload) as response:
+            async with session.get(api_url, json=payload) as response:
                 if response.status != 200:
                     raise ValueError(
                         f"Failed to send request: {response.status}, {await response.text()}"
@@ -25,15 +25,15 @@ async def send_request_to_endpoint(api_url: str, payload: Dict) -> Optional[Dict
 
 
 async def main():
-    api_url = "http://localhost:8000/yolo-detect"
-    payload = {
-        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTjB8OZF0Jv2LmfP2GgWTUdZGmcIzXcV3kyUg&s"
-    }
+    api_url = "http://3.91.79.53:8000/מחשב-חזקת-שתי-ספרות"
+    payload = {}
 
     try:
-        for i in range(100):
+        for i in range(100, 2):
+            payload["message"] = [2, i]
             a = await send_request_to_endpoint(api_url, payload)
-            print(f"Response {i}: {a}")
+            print(i)
+            print(f"Response {i} ::: {a}")
     except ValueError as e:
         print(f"Error: {e}")
 

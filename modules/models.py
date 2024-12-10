@@ -1,14 +1,7 @@
 import numpy as np
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
-
-
-class Xyxy(BaseModel):
-    x1: float
-    y1: float
-    x2: float
-    y2: float
 
 
 class Coordinates(BaseModel):
@@ -18,6 +11,17 @@ class Coordinates(BaseModel):
 
 class Shape(BaseModel):
     shape: List[Coordinates]
+
+
+class Xyxy(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+    @field_validator("x1", "y1", "x2", "y2", mode="before")
+    def round_to_three_decimals(cls, value):
+        return round(value, 3)
 
 
 class YoloData(BaseModel):

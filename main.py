@@ -1,17 +1,21 @@
+import os
+import hmac
 import uvicorn
+import hashlib
+import subprocess
 import numpy as np
-from typing import Dict, List, Optional, Union
-from fastapi import FastAPI, HTTPException, Query
+from typing import Dict, Optional, Union
+from fastapi import FastAPI, HTTPException, Query, Request
 
 from services import APIService, YoloService, MaskService
 
 from modules import (
-    AlertResponse,
-    AlertRequest,
     AlertsResponse,
+    AlertResponse,
     AlertsRequest,
+    AlertRequest,
+    CameraData,
     YoloData,
-    CameraData
 )
 
 # Initialize FastAPI app
@@ -29,6 +33,51 @@ async def startup_event():
     Initializes the YoloService for object detection when the FastAPI application starts.
     """
     await yolo_service.initialize()
+
+
+@app.post("/webhook")
+async def github_webhook(request: Request):
+    # Extract GitHub signature
+    github_signature = request.headers.get("X-Hub-Signature-256")
+    if not github_signature:
+        raise HTTPException(status_code=400, detail="Missing signature header")
+
+    webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
+
+    # Read payload
+    payload = await request.body()
+
+    # Calculate expected signature
+    secret = webhook_secret.encode()
+    expected_signature = "sha256=" + hmac.new(
+        key=secret, msg=payload, digestmod=hashlib.sha256
+    ).hexdigest()
+
+    # Validate signature
+    if not hmac.compare_digest(github_signature, expected_signature):
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
+    # Execute deployment steps
+    try:
+        # Pull latest changes
+        subprocess.run(["git", "pull", "origin", "master"], check=True)
+
+        # Activate virtual environment
+        subprocess.run(["source", "venv/bin/activate"], shell=True, check=True)
+
+        # Install dependencies
+        subprocess.run(
+            ["pip", "install", "-r", "requirements.txt"], shell=True, check=True)
+
+        # # Restart application
+        subprocess.run(["sudo", "systemctl", "restart",
+                       "yolo_api"], check=True)
+
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Deployment failed: {str(e)}")
+
+    return {"status": "Deployment successful"}
 
 
 @app.post("/yolo-detect/single", response_model=AlertResponse)
@@ -57,9 +106,6 @@ async def post_alert(request: AlertRequest):
 
         # Process image with YOLO
         detections = await yolo_service.add_image_to_queue(yolo_data)
-
-        # Normalize bbox coordinates to percentages relative to image dimensions
-        detections = MaskService.convert_bbox(detections, image.shape)
 
         # Custom print results
         MaskService.print_results(detections)
@@ -143,10 +189,6 @@ async def post_alert(request: AlertsRequest):
         # Process with YOLO
         detections = await yolo_service.add_image_to_queue(yolo_data)
 
-        # Normalize bbox coordinates to percentages relative to image dimensions
-        detections = [MaskService.convert_bbox(
-            det, frames[0].shape) for det in detections]
-
         # Custom print results
         MaskService.print_results(detections)
 
@@ -180,9 +222,6 @@ async def post_alert(request: AlertsRequest):
     try:
         # Fetch image from URLs
         frames = [await APIService.fetch_image(url) for url in urls]
-        if frames is None or []:
-            raise HTTPException(
-                status_code=400, detail="Failed to decode image")
 
         # Prepare YOLO data for detection
         yolo_data = YoloData(
@@ -193,10 +232,7 @@ async def post_alert(request: AlertsRequest):
 
         # Generate binary mask
         mask = MaskService.create_combined_mask(
-            frames[0].shape,
-            camera_data.masks,
-            camera_data.is_focus
-        )
+            frames[0].shape, camera_data.masks, camera_data.is_focus)
 
         # Filter detection on mask and Normalize bbox coordinates to percentages relative to image dimensions
         detections = [MaskService.get_detections_on_mask(
@@ -232,16 +268,10 @@ async def post_alert(request: AlertsRequest):
     try:
         # Fetch image from URLs
         frames = [await APIService.fetch_image(url) for url in urls]
-        if frames is None or []:
-            raise HTTPException(
-                status_code=400, detail="Failed to decode image")
 
         # Generate binary mask
         mask = MaskService.create_combined_mask(
-            frames[0].shape,
-            camera_data.masks,
-            camera_data.is_focus
-        )
+            frames[0].shape, camera_data.masks, camera_data.is_focus)
 
         # Check movement on mask
         movement_detected = MaskService.detect_significant_movement(
@@ -299,14 +329,12 @@ async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Op
 
         # Generate binary mask
         mask = MaskService.create_combined_mask(
-            frames[0].shape,
-            camera_data.masks,
-            camera_data.is_focus
-        )
+            frames[0].shape, camera_data.masks, camera_data.is_focus)
 
         # If there's only one frame and motion detection is enabled, check for movement
         if len(frames) == 1:
             frames = frames[0]
+
         elif bool(motion):
             # Check movement on the mask
             movement_detected = MaskService.detect_significant_movement(
@@ -327,8 +355,8 @@ async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Op
             detections = [MaskService.get_detections_on_mask(
                 det, mask, frames[0].shape) for det in detections]
         else:
-            detections = MaskService.get_detections_on_mask(
-                detections, mask, frames.shape)
+            detections = [MaskService.get_detections_on_mask(
+                detections, mask, frames.shape)]
 
         # Custom print results (optional)
         MaskService.print_results(detections)
@@ -342,6 +370,12 @@ async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Op
 
 if __name__ == "__main__":
     """
-    Run the FastAPI application with Uvicorn server on localhost, port 8000.
+    Run the FastAPI application with Uvicorn server for production
     """
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",  # Listen on all network interfaces
+        port=8000,
+        workers=1,  # Use multiple workers
+        reload=True  # Disable reload in production
+    )
