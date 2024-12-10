@@ -1,4 +1,5 @@
 .vscode/*
+**.jpg
 .venv/**
 venv**
 Includs**
