@@ -104,7 +104,7 @@ class YoloService:
 
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(self._executor, self._run_model, YoloData(image=image, confidence=confidence, classes=classes))
-
+            # results.save(save_dir='results/')
             detections = await loop.run_in_executor(self._executor, self._extract_detections, results.xyxy[0], image.shape)
             return detections
         except Exception as e:
@@ -124,7 +124,7 @@ class YoloService:
                 detections.append(Detection(
                     bbox=Xyxy(x1=x1/img_x, y1=y1/img_y,
                               x2=x2/img_x, y2=y2/img_y),
-                    confidence=confidence,
+                    confidence=f"{confidence:.2f}",
                     class_id=class_id,
                     class_name=self.model.names[class_id])
                 )

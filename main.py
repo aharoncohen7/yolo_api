@@ -18,8 +18,6 @@ from modules import (
     YoloData,
 )
 
-webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
-
 # Initialize FastAPI app
 app = FastAPI(title="YOLO Detection Service")
 
@@ -39,32 +37,45 @@ async def startup_event():
 
 @app.post("/webhook")
 async def github_webhook(request: Request):
-    # Verify GitHub signature
-    github_signature = request.headers.get('X-Hub-Signature-256')
+    # Extract GitHub signature
+    github_signature = request.headers.get("X-Hub-Signature-256")
+    if not github_signature:
+        raise HTTPException(status_code=400, detail="Missing signature header")
+
+    webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
+
+    # Read payload
     payload = await request.body()
 
+    # Calculate expected signature
     secret = webhook_secret.encode()
-    expected_signature = 'sha256=' + hmac.new(
-        key=secret,
-        msg=payload,
-        digestmod=hashlib.sha256
+    expected_signature = "sha256=" + hmac.new(
+        key=secret, msg=payload, digestmod=hashlib.sha256
     ).hexdigest()
 
     # Validate signature
     if not hmac.compare_digest(github_signature, expected_signature):
         raise HTTPException(status_code=403, detail="Invalid signature")
 
-    # Pull latest changes
-    subprocess.run(["git", "pull", "origin", "main"])
+    # Execute deployment steps
+    try:
+        # Pull latest changes
+        subprocess.run(["git", "pull", "origin", "master"], check=True)
 
-    # Activate virtual environment
-    subprocess.run(["source", "venv/bin/activate"])
+        # Activate virtual environment
+        subprocess.run(["source", "venv/bin/activate"], shell=True, check=True)
 
-    # Install dependencies
-    subprocess.run(["pip", "install", "-r", "requirements.txt"])
+        # Install dependencies
+        subprocess.run(
+            ["pip", "install", "-r", "requirements.txt"], shell=True, check=True)
 
-    # Restart application
-    subprocess.run(["sudo", "systemctl", "restart", "your-app-service"])
+        # # Restart application
+        subprocess.run(["sudo", "systemctl", "restart",
+                       "yolo_api"], check=True)
+
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Deployment failed: {str(e)}")
 
     return {"status": "Deployment successful"}
 
