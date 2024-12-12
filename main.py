@@ -1,10 +1,11 @@
+import cv2
 # import os
 # import hmac
 import uvicorn
 # import hashlib
 import numpy as np
 # import subprocess
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Query, Request
 
 from services import APIService, YoloService, MaskService
@@ -323,6 +324,10 @@ async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Op
     try:
         # Fetch image from URL(s)
         frames = [await APIService.fetch_image(url) for url in urls]
+
+        # For development testing
+        # frames = [cv2.imread(url).astype(np.uint8()) for url in urls]
+
         if frames is None or []:
             raise HTTPException(
                 status_code=400, detail="Failed to decode image")
