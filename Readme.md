@@ -32,7 +32,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-The service will start locally, typically at `http://localhost:8000`.
+The service will start locally at `http://localhost:8000`.
 
 ---
 
