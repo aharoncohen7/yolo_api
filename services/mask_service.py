@@ -13,10 +13,13 @@ class MaskService:
         """
         Creates a combined mask by merging multiple masks into one binary mask.
 
-        :param image_shape: Shape of the image (height, width).
-        :param masks: List of masks to combine.
-        :param is_focus: If True, keeps focus areas; if False, keeps exclusion areas.
-        :return: Combined binary mask (numpy array).
+        - Args : 
+            - `image_shape`: Shape of the image (`height, width`).
+            - `masks`: List of masks to combine.
+            - `is_focus`: If `True`, keeps focus areas; if `False`, keeps exclusion areas.
+
+        - Return:
+            - Combined binary `mask` (`numpy array`).
         """
         if masks:
             # Initialize an empty mask of the same shape as the image
@@ -54,9 +57,12 @@ class MaskService:
         """
         Filters detections based on whether their center is inside the provided mask.
 
-        :param detections: List of detection objects (bounding boxes).
-        :param mask: Binary mask to check against.
-        :return: List of detections whose center is inside the mask.
+        - Args :
+            - `detections`: List of detection objects (`bounding boxes`).
+            - `mask`: Binary mask to check against.
+
+        - Return:
+            - List of `detections` whose center is inside the `mask`.
         """
 
         if isinstance(mask, np.ndarray):
@@ -90,10 +96,13 @@ class MaskService:
         """
         Accumulates motion between two frames by blending their differences.
 
-        :param prev_diff: The previous frame's difference.
-        :param current_diff: The current frame's difference.
-        :param alpha: Weight for the previous frame's difference in the blend.
-        :return: Accumulated motion.
+        - Args: 
+            - `prev_diff`: The previous frame's difference.
+            - `current_diff`: The current frame's difference.
+            - `alpha`: Weight for the previous frame's difference in the blend.
+
+        - Return:
+            - Accumulated motion.
         """
         # Blend the two frame differences
         return cv2.addWeighted(prev_diff.astype(np.float32), alpha, current_diff.astype(np.float32), 1 - alpha, 0)
@@ -103,9 +112,12 @@ class MaskService:
         """
         Checks if a contour's center is inside the provided mask.
 
-        :param contour: The contour to check.
-        :param mask: The mask to check against.
-        :return: True if the contour's center is inside the mask, False otherwise.
+        - Args:
+            - `contour`: The `contour` to check.
+            - `mask`: The `mask` to check against.
+
+        - Return:
+            - `True` if the contour's center is inside the `mask`, `False` otherwise.
         """
         M = cv2.moments(contour)
         if M["m00"] == 0:
@@ -122,11 +134,14 @@ class MaskService:
         """
         Detects significant motion in a series of frames using a mask.
 
-        :param frames: List of frames to analyze (at least two).
-        :param mask: Binary mask to apply.
-        :param sensitivity: Motion sensitivity.
-        :param min_area: Minimum area to consider significant motion.
-        :return: True if significant motion is detected, False otherwise.
+        - Args:
+            - `frames`: List of `frames` to analyze (at least two).
+            - `mask`: Binary mask to apply.
+            - `sensitivity`: Motion sensitivity.
+            - `min_area`: Minimum area to consider significant motion.
+
+        - Return :
+            - `True` if significant motion is detected, `False` otherwise.
         """
         if len(frames) < 2:
             raise ValueError("At least two frames are required.")
@@ -150,6 +165,7 @@ class MaskService:
             # Calculate the frame difference
             diff = cv2.absdiff(frames[i], frames[i + 1])
             diff_gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+
             # Apply Gaussian blur to the difference
             blurred_diff = cv2.GaussianBlur(
                 diff_gray, (blur_kernel_size, blur_kernel_size), 0)
@@ -166,6 +182,7 @@ class MaskService:
             np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         significant_contours = [
             cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
         # Filter contours based on whether they are inside the mask
         filtered_contours = [
             cnt for cnt in significant_contours if MaskService.is_contour_in_mask(cnt, mask)]
@@ -179,12 +196,10 @@ class MaskService:
         Prints the results of object detections in a formatted table.
 
         Args:
-            detections (List[Detection] | List[List[Detection]]): A list of detections, either as a flat list or 
-                a list of lists, where each element is an instance of the `Detection` class. Each detection should
-                contain information such as class name, confidence, and bounding box.
-            shape (tuple[int], optional): A tuple specifying the width of the columns in the printed table. 
-                Defaults to (10, 20, 20, 40), representing the widths of the Before table columns for Class Name, Confidence, and 
-                Bounding Box respectively.
+            - detections (`List[Detection] | List[List[Detection]]`):
+                - A list of detections, either as a flat list or a `list of lists`, where each element is an instance of the `Detection` class. Each detection should contain information such as class name, confidence, and bounding box.
+            - shape (`tuple[int], optional`):
+                - A tuple specifying the `width of the columns` in the printed table. Defaults to `(10, 20, 20, 40)`, representing the widths of the Before table columns for Class Name, Confidence, and Bounding Box respectively.
 
         """
 
@@ -225,129 +240,3 @@ class MaskService:
             print(divider)
 
         print()
-
-    # @staticmethod
-    # def print_results(detections: List[Detection] | List[List[Detection]], shape: tuple[int] = (10, 16, 16, 40)):
-    #     """
-    #     Prints the results of object detections in a formatted table.
-
-    #     Args:
-    #         detections (List[Detection] | List[List[Detection]]): A list of detections, either as a flat list or
-    #             a list of lists, where each element is an instance of the `Detection` class.
-    #         shape (tuple[int], optional): Width of the columns in the table. Defaults to (10, 16, 16, 40).
-    #     """
-    #     # Colors
-    #     RESET = "\033[0m"   # Reset
-    #     CYA = "\033[36m"    # Cyan (Key)
-    #     WHT = "\033[37m"    # White (Value)
-
-    #     # Bright colors
-    #     B_RED = "\033[91m"  # Bright Red
-    #     B_GRE = "\033[92m"  # Bright Green
-    #     B_YEL = "\033[93m"  # Bright Yellow
-    #     B_BLU = "\033[94m"  # Bright Blue
-    #     B_CYA = "\033[96m"  # Bright Cyan
-
-    #     # Check if detections are empty
-    #     if not detections:
-    #         print(f"\n\n   {B_RED}- No detections found -{RESET}   \n\n")
-    #         return
-
-    #     # If detections is not a list of lists, convert it to one
-    #     if not isinstance(detections[0], list):
-    #         detections = [detections]
-
-    #     # Check if all detection lists are empty
-    #     elif not any(detections):
-    #         print(f"\n\n   {B_RED}- No detections found -{RESET}   \n\n")
-    #         return
-
-    #     # Adjust table dimensions
-    #     width = shutil.get_terminal_size().columns - 4
-    #     B, F, S, L = shape
-    #     B = int((width // 2) - ((F + S + L) // 2) -
-    #             10) if width > F + S + L else 1
-
-    #     # Define the table headers and divider
-    #     headers = f"{' ' * B}| {B_BLU}{'Class Name':^{F}}{RESET}|{B_BLU}{
-    #         'Confidence':^{S}}{RESET}|{B_BLU}{'bbox':^{L}}{RESET}|"
-    #     divider = f"{' ' * B}|-{'-' * F}|{'-' * S}|{'-' * L}|"
-
-    #     # Print the table
-    #     print("\n\n" + divider)
-    #     print(headers)
-    #     print(divider)
-
-    #     # Loop through each set of detections (each image)
-    #     for i, image_detections in enumerate(detections, 1):
-    #         # Print the image header with custom colors
-    #         print(
-    #             f"{' ' * B}| {B_BLU}{f'Image {i}':<{F}}{RESET}|{' ' * S}|{' ' * L}|")
-
-    #         # Print each detection's details
-    #         for j, det in enumerate(image_detections, 1):
-    #             # Choose color based on confidence
-    #             conf_color = (
-    #                 B_GRE if det.confidence > 0.8 else  # High confidence
-    #                 B_YEL if det.confidence > 0.5 else  # Medium confidence
-    #                 B_RED                              # Low confidence
-    #             )
-
-    #             # Extract bbox details for separate coloring
-    #             bbox_keys = [f"x1", "y1", "x2", "y2"]
-    #             bbox_values = det.bbox
-
-    #             formatted_bbox = " ".join(
-    #                 f"{CYA}{key}{RESET}={B_CYA}{value[1]:.3f}{RESET}" for key, value in zip(bbox_keys, bbox_values)
-    #             )
-
-    #             # Print detection details
-    #             print(
-    #                 f"{' ' * B}| {B_CYA}{f'{j}. {det.class_name}':^{F}}{RESET}|"
-    #                 f"{conf_color}{f'{det.confidence:.3f}':^{S}}{RESET}|"
-    #                 f"   {f'{formatted_bbox}':^{L}}  |"
-    #             )
-
-    #         # Print the divider after each image's detections
-    #         print(divider)
-
-    #     print()
-
-    # @staticmethod
-    # def convert_bbox(detections: List[Detection], shape: List[int]) -> List[Detection]:
-    #     """
-    #     Converts the bounding box coordinates of detections to relative values based on image shape.
-
-    #     :param detections: List of detection objects.
-    #     :param shape: Image shape (height, width).
-    #     :return: List of detections with converted bounding boxes.
-    #     """
-    #     ret_detections = []
-
-    #     for detect in detections:
-    #         # Convert the bounding box to relative coordinates
-    #         detect.bbox = MaskService._convert_pixels_relative_to_image_shape(
-    #             detect.bbox,
-    #             shape[1],
-    #             shape[0]
-    #         )
-    #         ret_detections.append(detect)
-
-    #     return ret_detections
-
-    # @staticmethod
-    # def _convert_pixels_relative_to_image_shape(bbox: Xyxy, image_x: int, image_y: int):
-    #     """
-    #     Converts bounding box coordinates from pixel values to relative values.
-
-    #     :param bbox: Bounding box in pixel coordinates.
-    #     :param image_x: Width of the image.
-    #     :param image_y: Height of the image.
-    #     :return: Normalized bounding box in relative coordinates.
-    #     """
-    #     return Xyxy(
-    #         x1=round(bbox.x1 / image_x, 3),
-    #         x2=round(bbox.x2 / image_x, 3),
-    #         y1=round(bbox.y1 / image_y, 3),
-    #         y2=round(bbox.y2 / image_y, 3)
-    #     )
