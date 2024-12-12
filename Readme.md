@@ -116,13 +116,13 @@ Each mask is a list of `x, y` coordinates representing the vertices of a polygon
   },
   "detections": [
     {
-      "bbox": { "x1": 0.1, "y1": 0.2, "x2": 0.4, "y2": 0.6 },
+      "bbox": { "x1": 0.156, "y1": 0.224, "x2": 0.432, "y2": 0.666 },
       "class_name": "person",
       "class_id": 0,
       "confidence": 0.85
     },
     {
-      "bbox": { "x1": 0.5, "y1": 0.3, "x2": 0.8, "y2": 0.7 },
+      "bbox": { "x1": 0.554, "y1": 0.372, "x2": 0.812, "y2": 0.734 },
       "class_name": "car",
       "class_id": 2,
       "confidence": 0.78
