@@ -26,8 +26,10 @@ async def startup_event():
 async def check_single_picture(request: AlertRequest):
     """
     Process a single image and detect objects using YOLO.
+
     Args:
-    - request: Image URL and camera configuration (confidence, classes).
+    - request: Image URL and optional camera configuration (confidence, classes).
+
     Returns:
     - AlertResponse: Detection results with URL, camera data, and detected objects.
     """
@@ -59,8 +61,10 @@ async def check_single_picture(request: AlertRequest):
 async def check_single_picture_with_mask(request: AlertRequest):
     """
     Process a single image with a mask and detect objects using YOLO.
+
     Args:
     - request: Image URL and camera configuration (confidence, classes, masks, focus).
+
     Returns:
     - AlertResponse: Detection results with mask filtering.
     """
@@ -98,8 +102,10 @@ async def check_single_picture_with_mask(request: AlertRequest):
 async def check_many_pictures(request: AlertsRequest):
     """
     Process multiple images and detect objects using YOLO.
+
     Args:
-    - request: List of image URLs and camera configuration (confidence, classes).
+    - request: List of image URLs and optional camera configuration (confidence, classes).
+
     Returns:
     - AlertsResponse: Detection results for all images.
     """
@@ -131,8 +137,10 @@ async def check_many_pictures(request: AlertsRequest):
 async def check_many_pictures_with_mask(request: AlertsRequest):
     """
     Process multiple images with a mask and detect objects using YOLO.
+
     Args:
     - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
+
     Returns:
     - AlertsResponse: Detection results filtered by mask.
     - dict: Error message if no masks provided.
@@ -174,8 +182,10 @@ async def check_many_pictures_with_mask(request: AlertsRequest):
 async def check_many_pictures_with_mask_and_motion(request: AlertsRequest):
     """
     Process multiple images with a mask and motion detection using YOLO.
+
     Args:
     - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
+
     Returns:
     - AlertsResponse: Detection results with motion filtering.
     - dict: Message if no motion detected.
@@ -224,8 +234,9 @@ async def generic_detection(request: Optional[AlertsRequest | AlertRequest], mot
     Detect objects in images using YOLO, with optional motion detection.
 
     Args:
-    - request: Request containing image URL(s) and camera settings.
+    - request: Request containing image URL(s) and camera configuration, (confidence, classes, masks, focus).
     - motion: Whether to enable motion detection (default: True).
+    - example: `http://localhost/yolo-detect/?motion=true`
 
     Returns:
     - AlertsResponse: Detection results with URLs, camera settings, and bounding box data.
