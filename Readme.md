@@ -1,63 +1,115 @@
-# Yolo Api Service
+# Yolo API Service
 
-### start
+A simple service to process images using YOLO object detection.
 
-- Clone the project
-- open a virtual environment .venv
-- Run pip install -r requirements.txt
-- Run the main file
+---
 
-### Request Example
+## Getting Started
 
-- go to postman and fill the fields
+### 1. Clone the Project
+```bash
+git clone https://github.com/your-repo/yolo-api-service.git
+cd yolo-api-service
+```
 
-- Method: Post
-- Endpoint: http://locahost/yolo-detect
-- Request: ( body `json` )
+### 2. Set up a Virtual Environment
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the Service
+```bash
+python main.py
+```
+
+The service will start locally, typically at `http://localhost:8000`.
+
+---
+
+## Request Example
+
+You can test the API using tools like [Postman](https://www.postman.com/) or `curl`.
+
+### Endpoint
+- **Method**: `POST`
+- **URL**: `http://localhost:8000/yolo-detect`
+- **Request Body (JSON)**:
 
 ```json
 {
-  "url": "https://example.com/...",
+  "url": "https://example.com/your-image-url.jpg",
   "camera_data": {
-    // default
-    "confidence": 0.5, // = 0.2
-    "classes": [0, 2], // = [0,1,2] -> person, bicycle, car,
-    "is_focus": false, // = True -> main area
+    "confidence": 0.5,
+    "classes": [0, 2],
+    "is_focus": false,
     "masks": [
-      // = [] -> empty list
       {
         "shape": [
-          {
-            "x": 0.1234,
-            "y": 0.2134
-          },
-          {
-            "x": 0.9876,
-            "y": 0.5543
-          },
-          {
-            "x": 0.1212,
-            "y": 0.3333
-          }
+          { "x": 0.1234, "y": 0.2134 },
+          { "x": 0.9876, "y": 0.5543 },
+          { "x": 0.1212, "y": 0.3333 }
         ]
       },
       {
         "shape": [
-          {
-            "x": 0.1234,
-            "y": 0.2134
-          },
-          {
-            "x": 0.9876,
-            "y": 0.5543
-          },
-          {
-            "x": 0.1212,
-            "y": 0.3333
-          }
+          { "x": 0.5432, "y": 0.6543 },
+          { "x": 0.8765, "y": 0.1234 },
+          { "x": 0.4321, "y": 0.7654 }
         ]
       }
     ]
   }
 }
 ```
+
+### Explanation of Parameters
+
+#### `camera_data`
+- **`confidence`** (`float`): Minimum confidence threshold for detection. Default: `0.2`.
+- **`classes`** (`list[int]`): Object classes to detect. Default: `[0, 1, 2]` (e.g., person, bicycle, car).
+- **`is_focus`** (`bool`): If `true`, the detection focuses on the areas defined by the masks. Default: `true`.
+- **`masks`** (`list`): List of polygon shapes to define the focus areas. Default: an empty list.
+
+#### Example Mask
+Each mask is a list of `x, y` coordinates representing the vertices of a polygon.
+
+---
+
+## Example Response
+```json
+{
+  "detections": [
+    {
+      "class": "person",
+      "confidence": 0.85,
+      "bounding_box": { "x_min": 0.1, "y_min": 0.2, "x_max": 0.4, "y_max": 0.6 }
+    },
+    {
+      "class": "car",
+      "confidence": 0.78,
+      "bounding_box": { "x_min": 0.5, "y_min": 0.3, "x_max": 0.8, "y_max": 0.7 }
+    }
+  ]
+}
+```
+
+---
+
+## Troubleshooting
+
+If the service doesn't start or behaves unexpectedly, ensure:
+- You are using the correct Python version (e.g., Python 3.8+).
+- All dependencies are installed correctly.
+- The `url` in the request is valid and accessible.
+
+---
+
+## License
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
