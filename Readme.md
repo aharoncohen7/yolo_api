@@ -9,8 +9,8 @@ A simple service to process images using YOLO object detection.
 ### 1. Clone the Project
 
 ```bash
-git clone https://github.com/your-repo/yolo-api-service.git
-cd yolo-api-service
+git clone https://github.com/David-Abravanel/yolo_api.git
+cd yolo_api
 ```
 
 ### 2. Set up a Virtual Environment
