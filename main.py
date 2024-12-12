@@ -1,12 +1,8 @@
 import cv2
-# import os
-# import hmac
 import uvicorn
-# import hashlib
 import numpy as np
-# import subprocess
 from typing import Dict, List, Optional, Union
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query
 
 from services import APIService, YoloService, MaskService
 
@@ -36,62 +32,23 @@ async def startup_event():
     await yolo_service.initialize()
 
 
-# @app.post("/webhook")
-# async def github_webhook(request: Request):
-#     # Extract GitHub signature
-#     github_signature = request.headers.get("X-Hub-Signature-256")
-#     if not github_signature:
-#         raise HTTPException(status_code=400, detail="Missing signature header")
-
-#     webhook_secret = os.getenv('GITHUB_WEBHOOK_SECRET')  # From GitHub settings
-
-#     # Read payload
-#     payload = await request.body()
-
-#     # Calculate expected signature
-#     secret = webhook_secret.encode()
-#     expected_signature = "sha256=" + hmac.new(
-#         key=secret, msg=payload, digestmod=hashlib.sha256
-#     ).hexdigest()
-
-#     # Validate signature
-#     if not hmac.compare_digest(github_signature, expected_signature):
-#         raise HTTPException(status_code=403, detail="Invalid signature")
-
-#     # Execute deployment steps
-#     try:
-#         # Pull latest changes
-#         subprocess.run(["git", "pull", "origin", "master"], check=True)
-
-#         # Activate virtual environment
-#         subprocess.run(["source", "venv/bin/activate"], shell=True, check=True)
-
-#         # Install dependencies
-#         subprocess.run(
-#             ["pip", "install", "-r", "requirements.txt"], shell=True, check=True)
-
-#         # # Restart application
-#         subprocess.run(["sudo", "systemctl", "restart",
-#                        "yolo_api"], check=True)
-
-#     except subprocess.CalledProcessError as e:
-#         raise HTTPException(
-#             status_code=500, detail=f"Deployment failed: {str(e)}")
-
-#     return {"status": "Deployment successful"}
-
-
 @app.post("/yolo-detect/single", response_model=AlertResponse)
-async def post_alert(request: AlertRequest):
+async def check_single_picture(request: AlertRequest):
     """
+    Check single picture
+    --------------------
     Endpoint to process a single image and detect objects using YOLO.
 
     Args:
-    - request (AlertRequest): Request data containing the image URL and camera data.
-      - camera_data (CameraData): Contains the configuration for detection, including confidence threshold and class list.
-      - url (str): URL of the image to be processed.
+    -----
+    - request `AlertRequest`: Request data containing the image URL and camera data.
+        - url `str`: URL of the image to be processed.
+        - camera_data `CameraData`: Contains the configuration for detection, including:
+            - confidence threshold `float` - goes from 0 to 1 when 1 is the highest,
+            - class `list` [0,1,2,...80],
 
     Returns:
+    --------
     - AlertResponse: The detection results including URL, camera data, and detected objects.
     """
     camera_data: CameraData = request.camera_data
@@ -119,17 +76,25 @@ async def post_alert(request: AlertRequest):
 
 
 @app.post("/yolo-detect/single-with-mask", response_model=AlertResponse)
-async def post_alert(request: AlertRequest):
+async def check_single_picture_with_mask(request: AlertRequest):
     """
+    Check single picture with mask
+    ------------------------------
     Endpoint to process a single image with a mask and detect objects using YOLO.
 
     Args:
-    - request (AlertRequest): Request data containing the image URL and camera data.
-      - camera_data (CameraData): Contains the configuration for detection, including confidence threshold, class list, masks, and focus status.
-      - url (str): URL of the image to be processed.
+    -----
+    - request `AlertRequest`: Request data containing the image URL and camera data.
+        - url `str`: URL of the image to be processed.
+        - camera_data `CameraData`: Contains the configuration for detection, including:
+            - confidence threshold `float` - goes from 0 to 1 when 1 is the highest,
+            - class `list` [0,1,2,...80],
+            - masks `list[Shape]`: List of shapes the contain list of x,y `Coordinates`
+            - is_focus status `bool` if the coordinates in masks are the main area the focus will be `True`.
 
     Returns:
-    - AlertResponse: The detection results including URL, camera data, and filtered detections on the mask.
+    --------
+    - `AlertResponse`: The detection results including URL, camera data, and filtered detections on the mask.
     """
     camera_data: CameraData = request.camera_data
     url: str = request.url
@@ -164,16 +129,22 @@ async def post_alert(request: AlertRequest):
 
 
 @app.post("/yolo-detect/group", response_model=AlertsResponse)
-async def post_alert(request: AlertsRequest):
+async def check_many_pictures(request: AlertsRequest):
     """
+    Check many pictures
+    -------------------
     Endpoint to process multiple images and detect objects using YOLO.
 
     Args:
-    - request (AlertsRequest): Request data containing URLs of images and camera data.
-      - camera_data (CameraData): Contains the configuration for detection, including confidence threshold and class list.
-      - urls (List[str]): List of URLs of the images to be processed.
+    -----
+    - request `AlertsRequest`: Request data containing the image URL and camera data.
+        - urls `str`: URL of the image to be processed.
+        - camera_data `CameraData`: Contains the configuration for detection, including:
+            - confidence threshold `float` - goes from 0 to 1 when 1 is the highest,
+            - class `list` [0,1,2,...80],
 
     Returns:
+    --------
     - AlertsResponse: The detection results including URLs, camera data, and detected objects.
     """
     camera_data: CameraData = request.camera_data
@@ -201,16 +172,25 @@ async def post_alert(request: AlertsRequest):
 
 
 @app.post("/yolo-detect/group-with-mask", response_model=Optional[AlertsResponse | dict])
-async def post_alert(request: AlertsRequest):
+async def check_many_pictures_with_mask(request: AlertsRequest):
     """
+    Check many pictures with mask
+    -----------------------------
+
     Endpoint to process multiple images with a mask and detect objects using YOLO.
 
     Args:
-    - request (AlertsRequest): Request data containing URLs of images, camera data, and masks.
-      - camera_data (CameraData): Contains the configuration for detection, including confidence threshold, class list, masks, and focus status.
-      - urls (List[str]): List of URLs of the images to be processed.
+    -----
+    - request `AlertsRequest`: Request data containing the image URL and camera data.
+        - urls `str`: URL of the image to be processed.
+        - camera_data `CameraData`: Contains the configuration for detection, including:
+            - confidence threshold `float` - goes from 0 to 1 when 1 is the highest,
+            - class `list` [0,1,2,...80],
+            - masks `list[Shape]`: List of shapes the contain list of x,y `Coordinates`
+            - is_focus status `bool` if the coordinates in masks are the main area the focus will be `True`.
 
     Returns:
+    --------
     - AlertsResponse: The detection results including URLs, camera data, and filtered detections on the mask.
     - dict: Error message if no masks are provided.
     """
@@ -250,16 +230,24 @@ async def post_alert(request: AlertsRequest):
 
 
 @app.post("/yolo-detect/group-with-mask-and-motion", response_model=Optional[AlertsResponse | dict])
-async def post_alert(request: AlertsRequest):
+async def check_many_pictures_with_mask_and_motion(request: AlertsRequest):
     """
+    check many pictures with mask and motion
+    ----------------------------------------
     Endpoint to process multiple images with a mask and detect objects using YOLO, including motion detection.
 
     Args:
-    - request (AlertsRequest): Request data containing URLs of images, camera data, and masks.
-      - camera_data (CameraData): Contains the configuration for detection, including confidence threshold, class list, masks, and focus status.
-      - urls (List[str]): List of URLs of the images to be processed.
+    -----
+    - request `AlertsRequest`: Request data containing the image URL and camera data.
+        - urls `str`: URL of the image to be processed.
+        - camera_data `CameraData`: Contains the configuration for detection, including:
+            - confidence threshold `float` - goes from 0 to 1 when 1 is the highest,
+            - class `list` [0,1,2,...80],
+            - masks `list[Shape]`: List of shapes the contain list of x,y `Coordinates`
+            - is_focus status `bool` if the coordinates in masks are the main area the focus will be `True`.
 
     Returns:
+    --------
     - AlertsResponse: The detection results including URLs, camera data, and filtered detections on the mask if significant motion is detected.
     - dict: Message if no significant motion is detected.
     """
@@ -303,19 +291,48 @@ async def post_alert(request: AlertsRequest):
 
 
 @app.post("/yolo-detect", response_model=Optional[Union[AlertsResponse, Dict[str, str]]])
-async def post_alert(request: Optional[AlertsRequest | AlertRequest], motion: Optional[bool] = Query("true")):
+async def generic_detection(request: Optional[AlertsRequest | AlertRequest], motion: Optional[bool] = Query("true")):
     """
+    generic detection
+    -----------------
     Endpoint to process one or more images and detect objects using YOLO, with optional motion detection.
 
     Args:
-    - request (Optional[AlertsRequest | AlertRequest]): Request data containing one or more image URLs, camera configuration, and optional mask data.
-        - If `AlertRequest` is provided, the `url` of a single image is expected.
-        - If `AlertsRequest` is provided, multiple `urls` of images are expected.
-    - motion (Optional[bool]): Optional query parameter to enable or disable motion detection. Defaults to `True`.
+    -----
+    - request `Optional[AlertsRequest | AlertRequest]`: 
+        Request data containing one or more image URLs, camera configuration, and optional mask data.
+
+        - If `AlertRequest`:
+            - url: `str` URL of a single image to be processed.
+            - camera_data: `CameraData` Contains the configuration for detection, including:
+                - confidence: `float` Confidence threshold (0 to 1, where 1 is the highest).
+                - classes: `list[int]` List of class IDs to detect (e.g., `[0, 1, 2, ..., 80]`).
+                - masks: `list[Shape]` List of shapes the contain list of x,y `Coordinates`
+                - is_focus: `bool` Indicates whether the area defined by the masks is the main focus (`True`).
+
+        - If `AlertsRequest`:
+            - urls: `list[str]` List of URLs for multiple images to be processed.
+            - camera_data: `CameraData`: Same structure as above.
+
+    - motion `Optional[bool]`: Query parameter to enable or disable motion detection. Defaults to `True`.
+
 
     Returns:
-    - AlertsResponse: The detection results including URLs, camera data, and detected objects.
-    - Dict[str, str]: A message if no significant motion is detected (if motion is enabled).
+    --------
+    - `AlertsResponse`: 
+        Detection results containing:
+        - `urls` (`list[str]`): Processed image URLs.
+        - `camera_data` (`CameraData`): Configuration data used for detection.
+        - `detections` (`list[list[Detection]]`): for each frame could be many Detection's objects with bounding boxes and some more details.
+
+    - `Dict[str, str]`: 
+        A message if no significant movement is detected when motion detection is enabled. 
+        - For example: `{ "message": "No significant movement detected between frames..."}`
+
+    Exceptions:
+    -----------
+    - Raises `HTTPException` with status 400 if image decoding fails.
+    - Raises `HTTPException` with status 500 for any other internal error.
     """
     camera_data: CameraData = request.camera_data
     urls = [request.url] if hasattr(request, 'url') and isinstance(
