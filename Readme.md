@@ -116,14 +116,16 @@ Each mask is a list of `x, y` coordinates representing the vertices of a polygon
   },
   "detections": [
     {
-      "class": "person",
-      "confidence": 0.85,
-      "bounding_box": { "x_min": 0.1, "y_min": 0.2, "x_max": 0.4, "y_max": 0.6 }
+      "bbox": { "x1": 0.1, "y1": 0.2, "x2": 0.4, "y2": 0.6 },
+      "class_name": "person",
+      "class_id": 0,
+      "confidence": 0.85
     },
     {
-      "class": "car",
-      "confidence": 0.78,
-      "bounding_box": { "x_min": 0.5, "y_min": 0.3, "x_max": 0.8, "y_max": 0.7 }
+      "bbox": { "x1": 0.5, "y1": 0.3, "x2": 0.8, "y2": 0.7 },
+      "class_name": "car",
+      "class_id": 2,
+      "confidence": 0.78
     }
   ]
 }
