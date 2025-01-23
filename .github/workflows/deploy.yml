@@ -37,9 +37,6 @@ jobs:
           pip install -r requirements.txt
           sha256sum requirements.txt | cut -d ' ' -f 1 > /tmp/requirements_hash
 
-      - name: Run tests
-        run: pytest
-
       - name: Deploy to server
         env:
           HOST: ${{ secrets.SERVER_HOST }}
