@@ -18,24 +18,15 @@ jobs:
         with:
           python-version: "3.9"
 
-  install_dependencies:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Step to deploy to the server
+      # Deploy to the server
       - name: Deploy to server
         env:
           HOST: ${{ secrets.SERVER_HOST }}
           USER: ${{ secrets.SERVER_USER }}
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
-          # Save the SSH key to a file
           echo "$SSH_KEY" > ssh_key
           chmod 600 ssh_key
-
-          # Now connect to the server with strict host checking disabled and pseudo-terminal enabled
           ssh -o StrictHostKeyChecking=no -t -i ssh_key $USER@$HOST << EOF
             cd /home/$USER/yolo_api
 
@@ -45,7 +36,7 @@ jobs:
             # Check if the requirements.txt has changed
             if ! cmp -s requirements.txt requirements.txt.bak; then
               echo "requirements.txt has changed, installing dependencies..."
-              python -m venv venv || true
+              python3 -m venv venv || true
               source venv/bin/activate
               pip install -r requirements.txt
               cp requirements.txt requirements.txt.bak
@@ -57,13 +48,23 @@ jobs:
             sudo systemctl restart yolo_api.service
           EOF
 
-      # Step to check health endpoint after deployment
-      - name: Health Check
+  health-check:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Perform Health Check
         run: |
-          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST:8000/health)
-          if [ "$RESPONSE" -eq 200 ]; then
-            echo "Health check passed!"
-          else
-            echo "Health check failed with status code $RESPONSE"
-            exit 1
-          fi
+          HOST=${{ secrets.SERVER_HOST }}
+          for i in {1..10}; do
+            RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST:8000/health)
+            if [ "$RESPONSE" -eq 200 ]; then
+              echo "Health check passed!"
+              exit 0
+            else
+              echo "Health check failed with status code $RESPONSE. Retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+          echo "Health check failed after multiple attempts."
+          exit 1
