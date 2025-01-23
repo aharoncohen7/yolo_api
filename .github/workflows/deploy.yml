@@ -24,18 +24,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step to copy the requirements.txt to the server
+      # Step to deploy to the server
       - name: Deploy to server
         env:
           HOST: ${{ secrets.SERVER_HOST }}
           USER: ${{ secrets.SERVER_USER }}
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
-          ssh -i $SSH_KEY $USER@$HOST << EOF
+          # Save the SSH key to a file
+          echo "$SSH_KEY" > ssh_key
+          chmod 600 ssh_key
+
+          # Now connect to the server
+          ssh -i ssh_key $USER@$HOST << EOF
             cd /home/$USER/yolo_api
-            
+
+            # Pull the latest changes
             git pull origin master
 
+            # Check if the requirements.txt has changed
             if ! cmp -s requirements.txt requirements.txt.bak; then
               echo "requirements.txt has changed, installing dependencies..."
               python -m venv venv || true
@@ -45,6 +52,7 @@ jobs:
             else
               echo "No changes in requirements.txt"
             fi
-            
+
+            # Restart the service
             sudo systemctl restart yolo_api.service
           EOF
