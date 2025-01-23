@@ -138,14 +138,16 @@ class SQSService:
                 classes=camera_data.classes
             )
             detection_result = await self.yolo.add_data_to_queue(yolo_data=yolo_data)
-            if detection_result and any(detection_result):
+            detections = [MaskService.get_detections_on_mask(
+                det, mask, frames[0].shape) for det in detection_result]
+            if detections and any(detections):
                 print('Object detect!!!')
                 # Create detection response
                 detection = AlertsResponse(
                     camera_data=message_body.without_camera_data(),
-                    detections=detection_result
+                    detections=detections
                 )
-                MaskService.print_results(detection_result)
+                MaskService.print_results(detections)
 
                 # # Send detection result
                 await self.send_message(detection)

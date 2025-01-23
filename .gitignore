@@ -1,18 +1,19 @@
+# test files
+tests/*
+
+# vscode files
 .vscode/*
-api_service.py
-a.py
 
-AWS.py
-
-ILG*.pem
-stres_test/*
-**.jpg
+# python run files
+__py**__
 .venv/**
 venv**
-Includs**
-Lib**
-Scripts**
-share**
-pyvenv**
+**.jpg
+
+# yolo file
 **.pt
-__py**
+
+# key files
+keys/*
+
+# requirements_all.txt

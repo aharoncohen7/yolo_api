@@ -8,6 +8,7 @@ class APIService:
     @staticmethod
     async def fetch_image(url: str) -> Optional[np.ndarray] | False:
         try:
+            # TODO: revers to S3 client like in the file -> test/a.py
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
