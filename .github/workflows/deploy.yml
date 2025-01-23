@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: "3.9"
 
   install_dependencies:
     runs-on: ubuntu-latest
@@ -47,6 +47,6 @@ jobs:
             else
               echo "No changes in requirements.txt"
             fi
-
+            
             sudo systemctl restart yolo_api.service
           EOF
