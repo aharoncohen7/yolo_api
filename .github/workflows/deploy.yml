@@ -55,9 +55,8 @@ jobs:
     steps:
       - name: Perform Health Check
         run: |
-          HOST=${{ secrets.SERVER_HOST }}
           for i in {1..10}; do
-            RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST:8000/health)
+            RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://${{ secrets.SERVER_HOST }}:8000/health)
             if [ "$RESPONSE" -eq 200 ]; then
               echo "Health check passed!"
               exit 0
