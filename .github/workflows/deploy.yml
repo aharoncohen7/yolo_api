@@ -34,13 +34,12 @@ jobs:
           # Save the SSH key to a file
           echo "$SSH_KEY" > ssh_key
           chmod 600 ssh_key
-
-          # Now connect to the server
+          
+          # Now connect to the server with strict host checking disabled and pseudo-terminal enabled
           ssh -o StrictHostKeyChecking=no -t -i ssh_key $USER@$HOST << EOF
             cd /home/$USER/yolo_api
 
             # Pull the latest changes
-            
             git pull origin master
 
             # Check if the requirements.txt has changed
@@ -57,10 +56,11 @@ jobs:
             # Restart the service
             sudo systemctl restart yolo_api.service
           EOF
-      
+
+      # Step to check health endpoint after deployment
       - name: Check health endpoint
         run: |
-          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST/health)
+          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST:8000/health)
           if [ "$RESPONSE" -eq 200 ]; then
             echo "Health check passed!"
           else
