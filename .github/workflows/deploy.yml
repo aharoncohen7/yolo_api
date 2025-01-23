@@ -31,13 +31,11 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
-          echo "$SSH_KEY" > ssh_key
-          chmod 600 ssh_key
-          scp -i ssh_key -r . $USER@$HOST:/home/$USER/yolo_api
-
-          ssh -i ssh_key $USER@$HOST << EOF
+          ssh -i $SSH_KEY $USER@$HOST << EOF
             cd /home/$USER/yolo_api
             
+            git pull origin master
+
             if ! cmp -s requirements.txt requirements.txt.bak; then
               echo "requirements.txt has changed, installing dependencies..."
               python -m venv venv || true
