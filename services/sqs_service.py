@@ -3,7 +3,7 @@ import logging
 import asyncio
 import aioboto3
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from services import YoloService
 from typing import List, Dict, Optional
 from services.api_service import APIService
@@ -38,7 +38,9 @@ class SQSService:
             self.batch_size = batch_size
             self._num_of_receives = 0
             self._num_of_sends = 0
+            self._metrics_lock = asyncio.Lock()
             self._metrics = {
+                'run_time': timedelta(),
                 'receives': 0,
                 'sends': 0,
                 'no_motion': 0,
@@ -108,6 +110,7 @@ class SQSService:
 
     async def process_message(self, message: Dict):
         try:
+            start = datetime.now()
             message_body: AlertsRequest = AlertsRequest(
                 **json.loads(message['Body']))
             S3urls = message_body.snapshots
@@ -119,6 +122,8 @@ class SQSService:
                 print("No valid frames retrieved -> type:", 'xml')
                 await self.delete_message(message['ReceiptHandle'])
                 self._metrics['expires'] += 1
+                async with self._metrics_lock:
+                    self._metrics['run_time'] += datetime.now() - start
                 return
 
             mask = MaskService.create_combined_mask(
@@ -130,6 +135,8 @@ class SQSService:
                     print('No motion')
                     self._metrics['no_motion'] += 1
                     await self.delete_message(message['ReceiptHandle'])
+                    async with self._metrics_lock:
+                        self._metrics['run_time'] += datetime.now() - start
                     return
 
             yolo_data = YoloData(
@@ -156,9 +163,13 @@ class SQSService:
 
             # Delete processed message
             await self.delete_message(message['ReceiptHandle'])
+            async with self._metrics_lock:
+                self._metrics['run_time'] += datetime.now() - start
 
             # Add any processing logic here
         except Exception as e:
+            async with self._metrics_lock:
+                self._metrics['run_time'] += datetime.now() - start
             self.logger.error(f"Message processing error: {e}")
 
     async def continuous_transfer(self, poll_interval: int = 0):
