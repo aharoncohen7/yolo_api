@@ -40,6 +40,7 @@ jobs:
             cd /home/$USER/yolo_api
 
             # Pull the latest changes
+            
             git pull origin master
 
             # Check if the requirements.txt has changed
