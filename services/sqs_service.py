@@ -40,7 +40,8 @@ class SQSService:
             self._num_of_sends = 0
             self._metrics_lock = asyncio.Lock()
             self._metrics = {
-                'run_time': timedelta(),
+                'total_run_time': datetime.now(),
+                'work_run_time': timedelta(),
                 'receives': 0,
                 'sends': 0,
                 'no_motion': 0,
@@ -123,7 +124,7 @@ class SQSService:
                 await self.delete_message(message['ReceiptHandle'])
                 self._metrics['expires'] += 1
                 async with self._metrics_lock:
-                    self._metrics['run_time'] += datetime.now() - start
+                    self._metrics['work_run_time'] += datetime.now() - start
                 return
 
             mask = MaskService.create_combined_mask(
@@ -136,7 +137,8 @@ class SQSService:
                     self._metrics['no_motion'] += 1
                     await self.delete_message(message['ReceiptHandle'])
                     async with self._metrics_lock:
-                        self._metrics['run_time'] += datetime.now() - start
+                        self._metrics['work_run_time'] += datetime.now() - \
+                            start
                     return
 
             yolo_data = YoloData(
@@ -164,12 +166,12 @@ class SQSService:
             # Delete processed message
             await self.delete_message(message['ReceiptHandle'])
             async with self._metrics_lock:
-                self._metrics['run_time'] += datetime.now() - start
+                self._metrics['work_run_time'] += datetime.now() - start
 
             # Add any processing logic here
         except Exception as e:
             async with self._metrics_lock:
-                self._metrics['run_time'] += datetime.now() - start
+                self._metrics['work_run_time'] += datetime.now() - start
             self.logger.error(f"Message processing error: {e}")
 
     async def continuous_transfer(self, poll_interval: int = 0):
@@ -188,4 +190,6 @@ class SQSService:
                 await asyncio.sleep(poll_interval)
 
     def get_metrics(self) -> Dict:
-        return self._metrics.copy()
+        metric = self._metrics.copy()
+        metric['total_run_time'] = datetime.now() - metric['total_run_time']
+        return metric
