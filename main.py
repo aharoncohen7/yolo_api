@@ -1,6 +1,5 @@
 import cv2
 import uvicorn
-import numpy as np
 from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Query
 
@@ -22,210 +21,210 @@ async def startup_event():
     await yolo_service.initialize()
 
 
-@app.post("/yolo-detect/single", response_model=AlertResponse)
-async def check_single_picture(request: AlertRequest):
-    """
-    Process a single image and detect objects using YOLO.
+# @app.post("/yolo-detect/single", response_model=AlertResponse)
+# async def check_single_picture(request: AlertRequest):
+#     """
+#     Process a single image and detect objects using YOLO.
 
-    Args:
-    - request: Image URL and optional camera configuration (confidence, classes).
+#     Args:
+#     - request: Image URL and optional camera configuration (confidence, classes).
 
-    Returns:
-    - AlertResponse: Detection results with URL, camera data, and detected objects.
-    """
-    camera_data: CameraData = request.camera_data
-    url: str = request.url
+#     Returns:
+#     - AlertResponse: Detection results with URL, camera data, and detected objects.
+#     """
+#     camera_data: CameraData = request.camera_data
+#     url: str = request.url
 
-    try:
-        # Fetch image from URL
-        image: np.ndarray = await APIService.fetch_image(url)
+#     try:
+#         # Fetch image from URL
+#         image: np.ndarray = await APIService.fetch_image(url)
 
-        # Prepare YOLO data for detection
-        yolo_data: YoloData = YoloData(
-            image=image, confidence=camera_data.confidence, classes=camera_data.classes)
+#         # Prepare YOLO data for detection
+#         yolo_data: YoloData = YoloData(
+#             image=image, confidence=camera_data.confidence, classes=camera_data.classes)
 
-        # Process image with YOLO
-        detections = await yolo_service.add_image_to_queue(yolo_data)
+#         # Process image with YOLO
+#         detections = await yolo_service.add_image_to_queue(yolo_data)
 
-        # Print results
-        MaskService.print_results(detections)
+#         # Print results
+#         MaskService.print_results(detections)
 
-        return AlertResponse(url=url, camera_data=camera_data, detections=detections)
+#         return AlertResponse(url=url, camera_data=camera_data, detections=detections)
 
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/yolo-detect/single-with-mask", response_model=AlertResponse)
-async def check_single_picture_with_mask(request: AlertRequest):
-    """
-    Process a single image with a mask and detect objects using YOLO.
-
-    Args:
-    - request: Image URL and camera configuration (confidence, classes, masks, focus).
-
-    Returns:
-    - AlertResponse: Detection results with mask filtering.
-    """
-    camera_data: CameraData = request.camera_data
-    url: str = request.url
-
-    try:
-        # Fetch image from URL
-        image: np.ndarray = await APIService.fetch_image(url)
-
-        # Prepare YOLO data for detection
-        yolo_data: YoloData = YoloData(
-            image=image, confidence=camera_data.confidence, classes=camera_data.classes)
-
-        # Process image with YOLO
-        detections = await yolo_service.add_image_to_queue(yolo_data)
-
-        # Generate mask and filter detections
-        mask = MaskService.create_combined_mask(
-            image.shape, camera_data.masks, camera_data.is_focus)
-        detections = MaskService.get_detections_on_mask(
-            detections, mask, image.shape)
-
-        # Print results
-        MaskService.print_results(detections)
-
-        return AlertResponse(url=url, camera_data=camera_data, detections=detections)
-
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/yolo-detect/group", response_model=AlertsResponse)
-async def check_many_pictures(request: AlertsRequest):
-    """
-    Process multiple images and detect objects using YOLO.
+# @app.post("/yolo-detect/single-with-mask", response_model=AlertResponse)
+# async def check_single_picture_with_mask(request: AlertRequest):
+#     """
+#     Process a single image with a mask and detect objects using YOLO.
 
-    Args:
-    - request: List of image URLs and optional camera configuration (confidence, classes).
+#     Args:
+#     - request: Image URL and camera configuration (confidence, classes, masks, focus).
 
-    Returns:
-    - AlertsResponse: Detection results for all images.
-    """
-    camera_data: CameraData = request.camera_data
-    urls: List[str] = request.urls
+#     Returns:
+#     - AlertResponse: Detection results with mask filtering.
+#     """
+#     camera_data: CameraData = request.camera_data
+#     url: str = request.url
 
-    try:
-        # Fetch images from URLs
-        frames = [await APIService.fetch_image(url) for url in urls]
+#     try:
+#         # Fetch image from URL
+#         image: np.ndarray = await APIService.fetch_image(url)
 
-        # Prepare YOLO data for detection
-        yolo_data = YoloData(
-            image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
+#         # Prepare YOLO data for detection
+#         yolo_data: YoloData = YoloData(
+#             image=image, confidence=camera_data.confidence, classes=camera_data.classes)
 
-        # Process with YOLO
-        detections = await yolo_service.add_image_to_queue(yolo_data)
+#         # Process image with YOLO
+#         detections = await yolo_service.add_image_to_queue(yolo_data)
 
-        # Print results
-        MaskService.print_results(detections)
+#         # Generate mask and filter detections
+#         mask = MaskService.create_combined_mask(
+#             image.shape, camera_data.masks, camera_data.is_focus)
+#         detections = MaskService.get_detections_on_mask(
+#             detections, mask, image.shape)
 
-        return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+#         # Print results
+#         MaskService.print_results(detections)
 
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+#         return AlertResponse(url=url, camera_data=camera_data, detections=detections)
 
-
-@app.post("/yolo-detect/group-with-mask", response_model=Optional[AlertsResponse | dict])
-async def check_many_pictures_with_mask(request: AlertsRequest):
-    """
-    Process multiple images with a mask and detect objects using YOLO.
-
-    Args:
-    - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
-
-    Returns:
-    - AlertsResponse: Detection results filtered by mask.
-    - dict: Error message if no masks provided.
-    """
-    if not request.camera_data.masks:
-        return {"message": "Masks must be provided."}
-
-    camera_data: CameraData = request.camera_data
-    urls: List[str] = request.urls
-
-    try:
-        # Fetch images from URLs
-        frames = [await APIService.fetch_image(url) for url in urls]
-
-        # Prepare YOLO data for detection
-        yolo_data = YoloData(
-            image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
-
-        # Process with YOLO
-        detections = await yolo_service.add_image_to_queue(yolo_data)
-
-        # Generate mask and filter detections
-        mask = MaskService.create_combined_mask(
-            frames[0].shape, camera_data.masks, camera_data.is_focus)
-        detections = [MaskService.get_detections_on_mask(
-            det, mask, frames[0].shape) for det in detections]
-
-        # Print results
-        MaskService.print_results(detections)
-
-        return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
-
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/yolo-detect/group-with-mask-and-motion", response_model=Optional[AlertsResponse | dict])
-async def check_many_pictures_with_mask_and_motion(request: AlertsRequest):
-    """
-    Process multiple images with a mask and motion detection using YOLO.
+# @app.post("/yolo-detect/group", response_model=AlertsResponse)
+# async def check_many_pictures(request: AlertsRequest):
+#     """
+#     Process multiple images and detect objects using YOLO.
 
-    Args:
-    - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
+#     Args:
+#     - request: List of image URLs and optional camera configuration (confidence, classes).
 
-    Returns:
-    - AlertsResponse: Detection results with motion filtering.
-    - dict: Message if no motion detected.
-    """
-    camera_data: CameraData = request.camera_data
-    urls: List[str] = request.urls
+#     Returns:
+#     - AlertsResponse: Detection results for all images.
+#     """
+#     camera_data: CameraData = request.camera_data
+#     urls: List[str] = request.urls
 
-    try:
-        # Fetch images from URLs
-        frames = [await APIService.fetch_image(url) for url in urls]
+#     try:
+#         # Fetch images from URLs
+#         frames = [await APIService.fetch_image(url) for url in urls]
 
-        # Generate mask
-        mask = MaskService.create_combined_mask(
-            frames[0].shape, camera_data.masks, camera_data.is_focus)
+#         # Prepare YOLO data for detection
+#         yolo_data = YoloData(
+#             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
 
-        # Check for significant motion
-        movement_detected = MaskService.detect_significant_movement(
-            frames, mask)
-        if not movement_detected:
-            return {"message": "No significant motion detected."}
+#         # Process with YOLO
+#         detections = await yolo_service.add_image_to_queue(yolo_data)
 
-        # Prepare YOLO data for detection
-        yolo_data = YoloData(
-            image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
+#         # Print results
+#         MaskService.print_results(detections)
 
-        # Process with YOLO
-        detections = await yolo_service.add_image_to_queue(yolo_data)
+#         return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
 
-        # Filter detections
-        detections = [MaskService.get_detections_on_mask(
-            det, mask, frames[0].shape) for det in detections]
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
-        # Print results
-        MaskService.print_results(detections)
 
-        return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+# @app.post("/yolo-detect/group-with-mask", response_model=Optional[AlertsResponse | dict])
+# async def check_many_pictures_with_mask(request: AlertsRequest):
+#     """
+#     Process multiple images with a mask and detect objects using YOLO.
 
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+#     Args:
+#     - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
+
+#     Returns:
+#     - AlertsResponse: Detection results filtered by mask.
+#     - dict: Error message if no masks provided.
+#     """
+#     if not request.camera_data.masks:
+#         return {"message": "Masks must be provided."}
+
+#     camera_data: CameraData = request.camera_data
+#     urls: List[str] = request.urls
+
+#     try:
+#         # Fetch images from URLs
+#         frames = [await APIService.fetch_image(url) for url in urls]
+
+#         # Prepare YOLO data for detection
+#         yolo_data = YoloData(
+#             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
+
+#         # Process with YOLO
+#         detections = await yolo_service.add_image_to_queue(yolo_data)
+
+#         # Generate mask and filter detections
+#         mask = MaskService.create_combined_mask(
+#             frames[0].shape, camera_data.masks, camera_data.is_focus)
+#         detections = [MaskService.get_detections_on_mask(
+#             det, mask, frames[0].shape) for det in detections]
+
+#         # Print results
+#         MaskService.print_results(detections)
+
+#         return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
+# @app.post("/yolo-detect/group-with-mask-and-motion", response_model=Optional[AlertsResponse | dict])
+# async def check_many_pictures_with_mask_and_motion(request: AlertsRequest):
+#     """
+#     Process multiple images with a mask and motion detection using YOLO.
+
+#     Args:
+#     - request: List of image URLs and camera configuration (confidence, classes, masks, focus).
+
+#     Returns:
+#     - AlertsResponse: Detection results with motion filtering.
+#     - dict: Message if no motion detected.
+#     """
+#     camera_data: CameraData = request.camera_data
+#     urls: List[str] = request.urls
+
+#     try:
+#         # Fetch images from URLs
+#         frames = [await APIService.fetch_image(url) for url in urls]
+
+#         # Generate mask
+#         mask = MaskService.create_combined_mask(
+#             frames[0].shape, camera_data.masks, camera_data.is_focus)
+
+#         # Check for significant motion
+#         movement_detected = MaskService.detect_significant_movement(
+#             frames, mask)
+#         if not movement_detected:
+#             return {"message": "No significant motion detected."}
+
+#         # Prepare YOLO data for detection
+#         yolo_data = YoloData(
+#             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
+
+#         # Process with YOLO
+#         detections = await yolo_service.add_image_to_queue(yolo_data)
+
+#         # Filter detections
+#         detections = [MaskService.get_detections_on_mask(
+#             det, mask, frames[0].shape) for det in detections]
+
+#         # Print results
+#         MaskService.print_results(detections)
+
+#         return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/yolo-detect", response_model=Optional[Union[AlertsResponse, Dict[str, str]]])

@@ -12,7 +12,8 @@ class YoloService:
     """YOLO Service for managing image detection tasks."""
     _instance = None
     _lock = asyncio.Lock()
-    _executor = ThreadPoolExecutor(max_workers=10)
+    _executor = ThreadPoolExecutor(max_workers=8)
+    _semaphore = asyncio.Semaphore(8)
 
     def __new__(cls):
         if cls._instance is None:
@@ -24,8 +25,7 @@ class YoloService:
             print("Initializing YoloService instance")
             self.initialized = False
             self.model = None
-            self.device = torch.device(
-                'cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = torch.device('cpu')
             self.Q = asyncio.Queue()
             self.worker_task = None
 
@@ -53,6 +53,7 @@ class YoloService:
         """Runs the YOLO model with given data."""
         with torch.no_grad():
             self.model.conf = yolo_data.confidence
+            self.model.iou = 0.5
             self.model.classes = yolo_data.classes
             return self.model(yolo_data.image)
 
@@ -93,18 +94,17 @@ class YoloService:
     async def _process_yolo_data(self, yolo_data: YoloData) -> List[Dict]:
         """Processes YOLO data for detection."""
         if isinstance(yolo_data.image, list):
-            return await asyncio.gather(
+            results = await asyncio.gather(
                 *[self._run_yolo(img, yolo_data.classes, yolo_data.confidence) for img in yolo_data.image]
             )
+            return results
         return await self._run_yolo(yolo_data.image, yolo_data.classes, yolo_data.confidence)
 
     async def _run_yolo(self, image: np.ndarray, classes: List[int], confidence: float) -> List[Dict]:
         """Runs YOLO on a single image."""
         try:
-
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(self._executor, self._run_model, YoloData(image=image, confidence=confidence, classes=classes))
-            # results.save(save_dir='results/')
             detections = await loop.run_in_executor(self._executor, self._extract_detections, results.xyxy[0], image.shape)
             return detections
         except Exception as e:

@@ -35,7 +35,7 @@ class YoloData(BaseModel):
 
 class CameraData(BaseModel):
     classes: List[int] = [0, 1, 2]
-    confidence: float = 0.2
+    confidence: float = 0.5
     masks: Optional[List[Shape]] = []
     is_focus: bool = True
 

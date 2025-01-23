@@ -1,4 +1,10 @@
 .vscode/*
+api_service.py
+a.py
+
+AWS.py
+
+ILG*.pem
 stres_test/*
 **.jpg
 .venv/**
