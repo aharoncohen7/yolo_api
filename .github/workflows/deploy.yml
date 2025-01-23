@@ -57,3 +57,13 @@ jobs:
             # Restart the service
             sudo systemctl restart yolo_api.service
           EOF
+      
+      - name: Check health endpoint
+        run: |
+          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST/health)
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Health check passed!"
+          else
+            echo "Health check failed with status code $RESPONSE"
+            exit 1
+          fi
