@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from datetime import datetime
 from pydantic import BaseModel, field_validator
@@ -10,7 +11,8 @@ class Coordinates(BaseModel):
 
 
 class Shape(BaseModel):
-    shape: List[Coordinates]
+    shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates(
+        x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
 
 
 class Xyxy(BaseModel):
@@ -36,7 +38,7 @@ class YoloData(BaseModel):
 class CameraData(BaseModel):
     classes: List[int] = [0, 1, 2]
     confidence: float = 0.5
-    masks: Optional[List[Shape]] = []
+    masks: Optional[List[Shape]] = [Shape()]
     is_focus: bool = True
 
 
@@ -52,20 +54,48 @@ class AlertRequest(BaseModel):
     camera_data: CameraData = CameraData()
 
 
+class Request(BaseModel):
+    ip: str
+    nvr_name: str
+    channel_id: str
+    event_time: datetime
+    event_type: str
+    snapshots: List[str]
+    time_detect: datetime
+
+
 class AlertsRequest(BaseModel):
-    urls: List[str]
+    ip: str
+    nvr_name: str
+    channel_id: str
+    event_time: datetime
+    event_type: str
+    snapshots: List[str]
     camera_data: CameraData = CameraData()
+
+    def without_camera_data(self):
+        # Create a dictionary without `camera_data` and add `time_detect`
+        data = self.dict(exclude={"camera_data"})
+        data["time_detect"] = str(datetime.now())  # Add current time
+        return data
 
 
 class AlertResponse(BaseModel):
     url: str
     camera_data: CameraData
     detections: List[Detection] | List
-    time_created: datetime = datetime.now()
+    # time_created: datetime = datetime.now()
 
 
 class AlertsResponse(BaseModel):
-    urls: List[str]
-    camera_data: CameraData
+    camera_data: Request
     detections: List[List[Detection]] | List
-    time_detect: datetime = datetime.now()
+
+
+class DetectionEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if hasattr(obj, '__dict__'):
+            return obj.__dict__
+        return super().default(obj)

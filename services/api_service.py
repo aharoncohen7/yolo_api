@@ -6,11 +6,15 @@ from typing import Optional
 
 class APIService:
     @staticmethod
-    async def fetch_image(url: str) -> Optional[np.ndarray]:
+    async def fetch_image(url: str) -> Optional[np.ndarray] | False:
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
+                        content_type = response.headers.get(
+                            'Content-Type', '').lower()
+                        if 'xml' in content_type:
+                            return False
                         raise ValueError(f"Failed to fetch image: {response.status}, {await response.text()}")
                     image_data = await response.read()
 

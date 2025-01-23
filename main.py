@@ -2,8 +2,8 @@ import cv2
 import uvicorn
 from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Query
-
-from services import APIService, YoloService, MaskService
+import asyncio
+from services import APIService, YoloService, MaskService, SQSService
 from modules import AlertsResponse, AlertResponse, AlertsRequest, AlertRequest, CameraData, YoloData
 
 # Initialize FastAPI app
@@ -12,14 +12,22 @@ app = FastAPI(title="YOLO Detection Service")
 # Initialize YoloService
 yolo_service = YoloService()
 
+# Initialize SqsService
+SqsService = SQSService(
+    region='il-central-1',
+    data_for_queue_url='https://sqs.il-central-1.amazonaws.com/182399687196/ILG-motion-data-for-yolo',
+    backend_queue_url='https://sqs.il-central-1.amazonaws.com/182399687196/ILG-object-detect-for-backend',
+    yolo_service=yolo_service,
+)
+
 
 @app.on_event("startup")
 async def startup_event():
     """
-    Initialize YOLO service when the app starts.
+    Initialize YOLO and SQS services when the app starts.
     """
     await yolo_service.initialize()
-
+    asyncio.create_task(SqsService.continuous_transfer())
 
 # @app.post("/yolo-detect/single", response_model=AlertResponse)
 # async def check_single_picture(request: AlertRequest):
@@ -246,6 +254,7 @@ async def generic_detection(request: Optional[AlertsRequest | AlertRequest], mot
     """
 
     # Get URLs and camera data
+    print('data received')
     urls = [request.url] if hasattr(request, 'url') else request.urls
     camera_data = request.camera_data
 
@@ -268,7 +277,7 @@ async def generic_detection(request: Optional[AlertsRequest | AlertRequest], mot
         # Prepare YOLO data
         yolo_data = YoloData(
             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
-        detections = await yolo_service.add_image_to_queue(yolo_data=yolo_data)
+        detections = await yolo_service.add_data_to_queue(yolo_data=yolo_data)
 
         # Adjust detections for mask
         detections = [MaskService.get_detections_on_mask(
@@ -282,15 +291,19 @@ async def generic_detection(request: Optional[AlertsRequest | AlertRequest], mot
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/health")
+def get_metric():
+    metric = SqsService.get_metrics()
+    return {"data": metric, "status": 'healthy'}
+
+
 if __name__ == "__main__":
-    """
-    Run FastAPI application with Uvicorn server for  => Development
-    Run with `Gunicorn` on Ubuntu system\server for  => Production
-    """
+    # Run FastAPI application with Uvicorn server for  => Development
+    # Run with `Gunicorn` on Ubuntu system\server for  => Production
     uvicorn.run(
         "main:app",
         host="127.0.0.1",
         port=8000,
-        workers=1,
+        workers=4,
         reload=True
     )

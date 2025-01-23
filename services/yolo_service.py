@@ -57,7 +57,7 @@ class YoloService:
             self.model.classes = yolo_data.classes
             return self.model(yolo_data.image)
 
-    async def add_image_to_queue(self, yolo_data: YoloData) -> Optional[List[Detection] | List[List[Detection]]]:
+    async def add_data_to_queue(self, yolo_data: YoloData) -> Optional[List[Detection] | List[List[Detection]]]:
         """Adds an image to the processing queue."""
         if not self.initialized:
             raise RuntimeError("YoloService not initialized")
@@ -70,6 +70,24 @@ class YoloService:
             raise TimeoutError("YOLO processing timeout")
         except Exception as e:
             print(f"Error in add_image_to_queue: {str(e)}")
+            traceback.print_exc()
+            raise
+
+    async def add_batch_to_queue(self, yolo_data_list: List[YoloData]):
+        """
+        Adds a batch of images to the processing queue.
+        """
+        if not self.initialized:
+            raise RuntimeError("YoloService not initialized")
+
+        try:
+            for yolo_data in yolo_data_list:
+                future = asyncio.Future()
+                await self.Q.put((yolo_data, future))
+
+            print(f"Added {len(yolo_data_list)} items to the queue.")
+        except Exception as e:
+            print(f"Error in add_batch_to_queue: {str(e)}")
             traceback.print_exc()
             raise
 

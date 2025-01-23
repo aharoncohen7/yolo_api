@@ -8,5 +8,6 @@ from .models import (
     CameraData,
     Shape,
     YoloData,
-    Xyxy
+    Xyxy,
+    DetectionEncoder,
 )
