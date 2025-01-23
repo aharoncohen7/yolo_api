@@ -34,7 +34,7 @@ jobs:
           # Save the SSH key to a file
           echo "$SSH_KEY" > ssh_key
           chmod 600 ssh_key
-          
+
           # Now connect to the server with strict host checking disabled and pseudo-terminal enabled
           ssh -o StrictHostKeyChecking=no -t -i ssh_key $USER@$HOST << EOF
             cd /home/$USER/yolo_api
@@ -58,7 +58,7 @@ jobs:
           EOF
 
       # Step to check health endpoint after deployment
-      - name: Check health endpoint
+      - name: Health Check
         run: |
           RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://$HOST:8000/health)
           if [ "$RESPONSE" -eq 200 ]; then
