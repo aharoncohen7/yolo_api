@@ -12,6 +12,7 @@ def load_secret(secret_name):
 
         secret_dict = json.loads(secret)
 
+
         for key, value in secret_dict.items():
             os.environ[key] = value
         print(f"Loaded secrets from {secret_name} into environment variables.")
