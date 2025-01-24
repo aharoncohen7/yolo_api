@@ -45,7 +45,7 @@ class SQSService:
                 'sends': 0,
                 'no_motion': 0,
                 'no_detection': 0,
-                # 'no_detection_on_mask': 0,
+                'no_detection_on_mask': 0,
                 'expires': 0,
                 'get_errors': 0,
                 'send_errors': 0,
@@ -86,7 +86,7 @@ class SQSService:
             self._metrics['get_errors'] += 1
             return []
 
-    async def send_message(self, detection_data: AlertsResponse) -> bool:
+    async def send_message(self, detection_data: Dict) -> bool:
         try:
             sqs = await self.get_sqs_client()
             await sqs.send_message(
@@ -94,6 +94,8 @@ class SQSService:
                 MessageBody=json.dumps(detection_data, cls=DetectionEncoder)
             )
             self._metrics['sends'] += 1
+            # self._metrics['from_nvr_to_detection'] += (
+            #     datetime.now(pytz.UTC) - datetime.fromisoformat(detection_data.camera_data.event_time))
             return True
         except Exception as e:
             self.logger.error(f"SQS send error: {e}")
