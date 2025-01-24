@@ -13,6 +13,8 @@ venv**
 # yolo file
 **.pt
 
+# log files
+**.log
 # key files
 keys/*
 

@@ -30,6 +30,16 @@ class SQSService:
     ):
         if not hasattr(self, 'initialized'):
             self.logger = logging.getLogger(self.__class__.__name__)
+            self.logger.setLevel(logging.INFO)
+
+            formatter = logging.Formatter(
+                '%(asctime)s - %(levelname)s - %(message)s')
+            self.logger.addHandler(logging.StreamHandler())
+            self.logger.addHandler(
+                logging.FileHandler('yolo.log', mode='a'))
+            for handler in self.logger.handlers:
+                handler.setFormatter(formatter)
+
             self.session = aioboto3.Session(region_name=region)
             self._sqs_client = None
             self.data_for_queue_url = data_for_queue_url
@@ -67,8 +77,8 @@ class SQSService:
                 self._sqs_client = await self.session.client('sqs').__aenter__()
             return self._sqs_client
         except Exception as e:
-            self.logger.error(f"Error creating or retrieving SQS client: {
-                              e}", exc_info=True)
+            self.logger.error(
+                "Error creating or retrieving SQS client", exc_info=True)
             self._sqs_client = None
             raise
 
@@ -82,10 +92,12 @@ class SQSService:
                 VisibilityTimeout=10
             )
             messages = response.get('Messages', [])
+            self.logger.info(f"Received {len(messages)} messages")
             self._metrics['receives'] += len(messages)
             return messages
         except Exception as e:
-            self.logger.error(f"SQS receive error: {e}", exc_info=True)
+            self.logger.error(
+                "Failed to receive messages from SQS", exc_info=True)
             self._metrics['get_errors'] += 1
             return []
 
@@ -96,9 +108,10 @@ class SQSService:
                 QueueUrl=self.backend_queue_url,
                 MessageBody=json.dumps(detection_data, cls=DetectionEncoder)
             )
+            self.logger.info(f"Successfully sent detection data")
             return True
         except Exception as e:
-            self.logger.error(f"SQS send error: {e}", exc_info=True)
+            self.logger.error("Failed to send message to SQS", exc_info=True)
             self._metrics['send_errors'] += 1
             return False
 
@@ -111,7 +124,8 @@ class SQSService:
             )
             return True
         except Exception as e:
-            self.logger.error(f"SQS delete error: {e}", exc_info=True)
+            self.logger.error(
+                "Failed to delete message from SQS", exc_info=True)
             self._metrics['delete_errors'] += 1
             return False
 
@@ -119,8 +133,7 @@ class SQSService:
         while True:
             try:
                 messages = await self.get_messages()
-                self.logger.info(
-                    f"Received {len(messages)} messages", exc_info=True)
+                self.logger.info(f"Processing {len(messages)} messages")
                 if messages:
                     tasks = [self.process_message(msg) for msg in messages]
                     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -128,12 +141,13 @@ class SQSService:
                     for result in results:
                         if isinstance(result, Exception):
                             self.logger.error(
-                                "Task raised an exception", exc_info=result)
+                                "Error while processing a message", exc_info=result)
 
                 await asyncio.sleep(poll_interval)
 
             except Exception as e:
-                self.logger.error(f"Transfer loop error: {e}", exc_info=True)
+                self.logger.error(
+                    "Error in continuous transfer loop", exc_info=True)
                 await asyncio.sleep(poll_interval)
 
     async def process_message(self, message: Dict):
@@ -142,7 +156,8 @@ class SQSService:
             try:
                 message_body = AlertsRequest(**json.loads(message['Body']))
             except ValidationError as ve:
-                self.logger.error(f"Validation error: {ve}", exc_info=True)
+                self.logger.warning(f"Validation error for message: {
+                                    message['MessageId']}", exc_info=True)
                 await self.delete_message(message['ReceiptHandle'])
                 return
 
@@ -151,6 +166,8 @@ class SQSService:
             frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
+                self.logger.warning(f"Expired or invalid image URLs for message: {
+                                    message['MessageId']}")
                 await self.delete_message(message['ReceiptHandle'])
                 async with self._metrics_lock:
                     self._metrics['expires'] += 1
@@ -162,6 +179,7 @@ class SQSService:
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
 
             if len(frames) > 1 and not MaskService.detect_significant_movement(frames, mask):
+                self.logger.info(f"No significant motion detected")
                 await self.delete_message(message['ReceiptHandle'])
                 async with self._metrics_lock:
                     self._metrics['no_motion'] += 1
@@ -200,8 +218,12 @@ class SQSService:
             else:
                 async with self._metrics_lock:
                     if detection_result and any(detection_result):
+                        self.logger.info(f"No detections on mask for message: {
+                                         message['MessageId']}")
                         self._metrics['no_detection_on_mask'] += 1
                     else:
+                        self.logger.info(f"No detections for message: {
+                                         message['MessageId']}")
                         self._metrics['no_detection'] += 1
                     self._processing_times['without_detection'].append(
                         (datetime.now() - start_time).total_seconds())
@@ -211,7 +233,8 @@ class SQSService:
         except Exception as e:
             async with self._metrics_lock:
                 self._metrics['general_errors'] += 1
-            self.logger.error(f"Message processing error: {e}", exc_info=True)
+            self.logger.error(f"Error processing message: {
+                              message.get('MessageId', 'Unknown ID')}", exc_info=True)
 
     async def get_metrics(self) -> Dict:
         async with self._metrics_lock:
