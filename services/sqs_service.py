@@ -206,9 +206,16 @@ class SQSService:
                  ('h', 3600), ('m', 60), ('s', 1)]
 
         total_seconds = int(time_delta.total_seconds())
-        return ' '.join(f"{total_seconds // unit[1]}{unit[0]}"
-                        for unit in units
-                        if (qty := total_seconds // unit[1]) > 0)
+
+        # יצירת רשימה של הערכים לכל יחידת זמן
+        result = []
+        for unit in units:
+            unit_qty = total_seconds // unit[1]
+            if unit_qty > 0:
+                result.append(f"{unit_qty}{unit[0]}")
+                total_seconds -= unit_qty * unit[1]
+
+        return ' '.join(result)
 
     def get_metrics(self) -> Dict:
         metric = self._metrics.copy()
