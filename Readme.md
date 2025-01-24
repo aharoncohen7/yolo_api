@@ -1,4 +1,3 @@
-````markdown
 # 🚀 YOLO API Service
 
 A simple service to process images using **YOLO** object detection.
@@ -13,7 +12,6 @@ A simple service to process images using **YOLO** object detection.
 git clone https://github.com/David-Abravanel/yolo_api.git
 cd yolo_api
 ```
-````
 
 ### 2. Set up a Virtual Environment
 
