@@ -86,7 +86,7 @@ class SQSService:
             self._metrics['get_errors'] += 1
             return []
 
-    async def send_message(self, detection_data: Dict) -> bool:
+    async def send_message(self, detection_data: AlertsResponse) -> bool:
         try:
             sqs = await self.get_sqs_client()
             await sqs.send_message(

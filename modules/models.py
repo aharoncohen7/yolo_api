@@ -53,7 +53,7 @@ class Request(BaseModel):
     ip: str
     nvr_name: str
     channel_id: str
-    event_time: str
+    event_time: datetime
     event_type: str
     snapshots: List[str]
     time_detect: datetime
