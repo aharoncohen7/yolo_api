@@ -254,12 +254,15 @@ class SQSService:
                     'std': self._format_time(timedelta(seconds=np.std(self._camera_to_detection_times) if self._camera_to_detection_times else 0))
                 },
                 'detection_rate': (
-                    self._metrics['sends'] / total_send_attempts * 100
-                    if total_send_attempts else 0
+                    round(
+                        self._metrics['sends'] / total_send_attempts * 100
+                        if total_send_attempts else 0, 3)
+
                 ),
                 'error_rate': (
-                    total_errors / total_send_attempts * 100
-                    if total_send_attempts else 0
+                    round(
+                        total_errors / total_send_attempts * 100
+                        if total_send_attempts else 0, 3)
                 )
             }
 
