@@ -1,9 +1,3 @@
-הבנתי את השינוי! אז מה שאתה מחפש זה שה-API יחזור עם נתוני המצלמה מבלי לכלול את המידע שקשור ל-`camera_data`, וכולל במקום זאת את הזמן הנוכחי.
-
-נעדכן את התיעוד כך שיתאר את התהליך הזה:
-
-### עדכון תיעוד:
-
 ````markdown
 # 🚀 YOLO API Service
 
