@@ -1,3 +1,4 @@
+from datetime import datetime
 import uvicorn
 import asyncio
 from typing import Dict, Optional, Union
@@ -292,10 +293,9 @@ async def startup_event():
 
 
 @app.get("/health")
-def get_metric():
-    metric = SqsService.get_metrics()
+async def get_metric():
+    metric = await SqsService.get_metrics()
     return {"data": metric, "status": 'healthy'}
-
 
 if __name__ == "__main__":
     # Run FastAPI application with Uvicorn server for  => Development
