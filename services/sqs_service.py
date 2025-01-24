@@ -228,7 +228,7 @@ class SQSService:
             metric['general_errors']
         ])
 
-        def format_time(self, time_delta: timedelta) -> str:
+        def format_time(time_delta: timedelta) -> str:
             units = [('Y', 365*24*60*60), ('M', 30*24*60*60), ('D', 24*60*60),
                      ('h', 3600), ('m', 60), ('s', 1)]
 
