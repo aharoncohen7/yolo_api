@@ -7,11 +7,11 @@ client = boto3.client('secretsmanager', region_name='il-central-1')
 
 def load_secret(secret_name):
     try:
+        print(f"Attempting to retrieve secret: {secret_name}")
         response = client.get_secret_value(SecretId=secret_name)
+        print(f"Response: {response}")  # הדפסת התגובה שהתקבלה
         secret = response['SecretString']
-
         secret_dict = json.loads(secret)
-
 
         for key, value in secret_dict.items():
             os.environ[key] = value
