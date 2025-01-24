@@ -1,11 +1,14 @@
-from datetime import datetime
+import os
 import uvicorn
 import asyncio
-from typing import Dict, Optional, Union
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 
-from modules import AlertsResponse, AlertsRequest, YoloData
-from services import APIService, YoloService, MaskService, SQSService
+from services import YoloService, SQSService, load_env
+load_env()
+
+queue_for_yolo_url = os.getenv('queue_for_yolo_url')
+queue_for_backend_url = os.getenv('queue_for_backend_url')
+region = os.getenv('region')
 
 # Initialize FastAPI app
 app = FastAPI(title="YOLO Detection Service")
@@ -15,9 +18,9 @@ yolo_service = YoloService()
 
 # Initialize SqsService
 SqsService = SQSService(
-    region='il-central-1',
-    data_for_queue_url='https://sqs.il-central-1.amazonaws.com/182399687196/ILG-motion-data-for-yolo',
-    backend_queue_url='https://sqs.il-central-1.amazonaws.com/182399687196/ILG-object-detect-for-backend',
+    region=region,
+    data_for_queue_url=queue_for_yolo_url,
+    backend_queue_url=queue_for_backend_url,
     yolo_service=yolo_service,
 )
 
