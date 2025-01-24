@@ -235,60 +235,60 @@ async def startup_event():
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/yolo-detect", response_model=Optional[Union[AlertsResponse, Dict[str, str]]])
-async def generic_detection(request: Optional[AlertsRequest | AlertRequest], motion: Optional[bool] = Query("true")):
-    """
-    Detect objects in images using YOLO, with optional motion detection.
+# @app.post("/yolo-detect", response_model=Optional[Union[AlertsResponse, Dict[str, str]]])
+# async def generic_detection(request: Optional[AlertsRequest | AlertRequest], motion: Optional[bool] = Query("true")):
+#     """
+#     Detect objects in images using YOLO, with optional motion detection.
 
-    Args:
-    - request: Request containing image URL(s) and camera configuration, (confidence, classes, masks, focus).
-    - motion: Whether to enable motion detection (default: True).
-    - example: `http://localhost/yolo-detect/?motion=true`
+#     Args:
+#     - request: Request containing image URL(s) and camera configuration, (confidence, classes, masks, focus).
+#     - motion: Whether to enable motion detection (default: True).
+#     - example: `http://localhost/yolo-detect/?motion=true`
 
-    Returns:
-    - AlertsResponse: Detection results with URLs, camera settings, and bounding box data.
-    - Dict[str, str]: Message if no significant motion is detected.
+#     Returns:
+#     - AlertsResponse: Detection results with URLs, camera settings, and bounding box data.
+#     - Dict[str, str]: Message if no significant motion is detected.
 
-    Raises:
-    - HTTPException: For image decoding or internal errors.
-    """
+#     Raises:
+#     - HTTPException: For image decoding or internal errors.
+#     """
 
-    # Get URLs and camera data
-    print('data received')
-    urls = [request.url] if hasattr(request, 'url') else request.urls
-    camera_data = request.camera_data
+#     # Get URLs and camera data
+#     print('data received')
+#     urls = [request.url] if hasattr(request, 'url') else request.urls
+#     camera_data = request.camera_data
 
-    try:
-        # Fetch images
-        frames = [await APIService.fetch_image(url) for url in urls]
-        if not frames:
-            raise HTTPException(
-                status_code=400, detail="Failed to decode image")
+#     try:
+#         # Fetch images
+#         frames = [await APIService.fetch_image(url) for url in urls]
+#         if not frames:
+#             raise HTTPException(
+#                 status_code=400, detail="Failed to decode image")
 
-        # Create combined mask
-        mask = MaskService.create_combined_mask(
-            frames[0].shape, camera_data.masks, camera_data.is_focus)
+#         # Create combined mask
+#         mask = MaskService.create_combined_mask(
+#             frames[0].shape, camera_data.masks, camera_data.is_focus)
 
-        # Handle motion detection if needed
-        if len(frames) > 1 and bool(motion):
-            if not MaskService.detect_significant_movement(frames, mask):
-                return {"message": "No significant movement detected. Use '/yolo-detect?motion=false' for batch detection."}
+#         # Handle motion detection if needed
+#         if len(frames) > 1 and bool(motion):
+#             if not MaskService.detect_significant_movement(frames, mask):
+#                 return {"message": "No significant movement detected. Use '/yolo-detect?motion=false' for batch detection."}
 
-        # Prepare YOLO data
-        yolo_data = YoloData(
-            image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
-        detections = await yolo_service.add_data_to_queue(yolo_data=yolo_data)
+#         # Prepare YOLO data
+#         yolo_data = YoloData(
+#             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
+#         detections = await yolo_service.add_data_to_queue(yolo_data=yolo_data)
 
-        # Adjust detections for mask
-        detections = [MaskService.get_detections_on_mask(
-            det, mask, frames[0].shape) for det in detections]
+#         # Adjust detections for mask
+#         detections = [MaskService.get_detections_on_mask(
+#             det, mask, frames[0].shape) for det in detections]
 
-        # Return the detection results
-        return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+#         # Return the detection results
+#         return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
 
-    except Exception as e:
-        print(f"Error processing alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+#     except Exception as e:
+#         print(f"Error processing alert: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
