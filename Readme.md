@@ -162,41 +162,51 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 ## PROD Commends
 
 ### Basic libs
+
 ```bash
-sudo apt update && sudo apt upgrade -y && sudo apt install -y python3 python3-venv python3-pip git && sudo apt-get update && sudo apt-get install -y libgl1
+sudo apt update && sudo apt upgrade -y && sudo apt install -y python3 python3-venv python3-pip git && sudo apt install -y libgl1
 
 ```
 
 ### Clone the Repo and open the folder
+
 ```bash
 git clone https://github.com/David-Abravanel/yolo_api.git
-cd yolo_api 
+cd yolo_api
 ```
 
-### Open virtual environment and activate 
+### Open virtual environment and activate
+
 ```bash
 python3 -m venv venv
-source venv\bin\activate
+source venv/bin/activate
 ```
 
-### Install requirements 
+### Install requirements
+
 ```bash
-pip install fastapi uvicorn gunicorn boto3 ultralytics opencv-python pillow aiohttp aioboto3
+pip install fastapi uvicorn gunicorn boto3 ultralytics opencv-python
+pip install aiohttp aioboto3
 ```
 
 ### Test
+
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ## Systemd background run
+
 ### Open a new file
+
 ```bash
 sudo nano /etc/systemd/system/yolo_api.service
 ```
+
 <p>Copy and past the Systemd yolo_api file<p>
 
 ### Upload the changes and start
+
 ```bash
  sudo systemctl daemon-reload
 sudo systemctl enable yolo_api.service
@@ -204,17 +214,19 @@ sudo systemctl enable yolo_api.service
 ```
 
 ### Check status of the Runner
+
 ```bash
 sudo systemctl status yolo_api.service
 ```
 
 ### See the run in real time
+
 ```bash
  sudo journalctl -u yolo_api.service -f
 ```
 
-
 ### Systemd yolo_api file
+
 ```ini
 [Unit]
 Description=FastAPI application with Uvicorn YOLO SQS S3 For object deteaction

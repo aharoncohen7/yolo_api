@@ -198,8 +198,32 @@ class SQSService:
                 self.logger.error(f"Transfer loop error: {e}")
                 await asyncio.sleep(poll_interval)
 
+    def _format_time(self, time_delta: timedelta) -> str:
+        units = [('y', 365*24*60*60), ('m', 30*24*60*60), ('d', 24*60*60),
+                 ('h', 3600), ('m', 60), ('s', 1)]
+
+        total_seconds = int(time_delta.total_seconds())
+        return ' '.join(f"{total_seconds // unit[1]}{unit[0]}"
+                        for unit in units if (total_seconds := total_seconds % unit[1]) >= 0)
+
     def get_metrics(self) -> Dict:
         metric = self._metrics.copy()
-        metric['total_run_time'] = datetime.now() - metric['total_run_time']
+        metric['total_run_time'] = self._format_time(
+            datetime.now() - metric['total_run_time'])
+        metric['work_run_time'] = self._format_time(metric['work_run_time'])
+        metric['avg_detection_time'] = self._format_time(
+            metric['work_run_time'] / metric['no_detection']
+            if metric['no_detection'] else timedelta()
+        )
+
+        total_send_attempts = metric['receives'] + metric['sends']
+        metric['success_rate'] = (
+            metric['sends'] / total_send_attempts * 100) if total_send_attempts else 0
+
+        total_errors = (metric['send_errors'] + metric['delete_errors'] +
+                        metric['get_errors'] + metric['general_errors'])
+        metric['error_rate'] = (
+            total_errors / total_send_attempts * 100) if total_send_attempts else 0
+
         metric['not_sends'] = metric['receives'] - metric['sends']
         return metric
