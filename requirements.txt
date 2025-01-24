@@ -3,8 +3,6 @@ aiohttp
 fastapi
 numpy
 opencv-python
-torch
 ultralytics
 uvicorn
 gunicorn
-pillow

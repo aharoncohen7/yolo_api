@@ -1,10 +1,10 @@
-import cv2
 import uvicorn
-from typing import Dict, List, Optional, Union
-from fastapi import FastAPI, HTTPException, Query
 import asyncio
+from typing import Dict, Optional, Union
+from fastapi import FastAPI, HTTPException, Query
+
+from modules import AlertsResponse, AlertsRequest, YoloData
 from services import APIService, YoloService, MaskService, SQSService
-from modules import AlertsResponse, AlertResponse, AlertsRequest, AlertRequest, CameraData, YoloData
 
 # Initialize FastAPI app
 app = FastAPI(title="YOLO Detection Service")

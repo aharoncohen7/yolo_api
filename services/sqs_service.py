@@ -3,13 +3,11 @@ import logging
 import asyncio
 import aioboto3
 import numpy as np
-from datetime import datetime, timedelta
-from services import YoloService
 from typing import List, Dict, Optional
-from services.api_service import APIService
-from services.mask_service import MaskService
-from modules import AlertsRequest, AlertsResponse
-from modules.models import DetectionEncoder, YoloData
+from datetime import datetime, timedelta
+
+from modules import AlertsRequest, AlertsResponse, DetectionEncoder, YoloData
+from services import YoloService, MaskService, APIService
 
 
 class SQSService:
@@ -198,26 +196,30 @@ class SQSService:
                 self.logger.error(f"Transfer loop error: {e}")
                 await asyncio.sleep(poll_interval)
 
-
     def _format_time(self, time_delta: timedelta) -> str:
         units = [('y', 365*24*60*60), ('m', 30*24*60*60), ('d', 24*60*60),
-                ('h', 3600), ('m', 60), ('s', 1)]
+                 ('h', 3600), ('m', 60), ('s', 1)]
 
         total_seconds = int(time_delta.total_seconds())
         return ' '.join(f"{total_seconds // unit[1]}{unit[0]}"
                         for unit in units
                         if (qty := total_seconds // unit[1]) > 0)
 
-
     def get_metrics(self) -> Dict:
         metric = self._metrics.copy()
         now = datetime.now()
 
-        metric['total_run_time'] = self._format_time(
-            now - metric['total_run_time'])
-        metric['work_run_time'] = self._format_time(metric['work_run_time'])
+        # Store original timedeltas before formatting
+        total_run_time = now - metric['total_run_time']
+        work_run_time = metric['work_run_time']
+
+        # Format times for display
+        metric['total_run_time'] = self._format_time(total_run_time)
+        metric['work_run_time'] = self._format_time(work_run_time)
+
+        # Calculate average detection time using original timedelta
         metric['avg_detection_time'] = self._format_time(
-            metric['work_run_time'] / metric['no_detection']
+            work_run_time / metric['no_detection']
             if metric['no_detection'] else timedelta()
         )
 

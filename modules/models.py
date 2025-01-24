@@ -1,8 +1,8 @@
 import json
 import numpy as np
 from datetime import datetime
-from pydantic import BaseModel, field_validator
 from typing import Optional, List
+from pydantic import BaseModel, field_validator
 
 
 class Coordinates(BaseModel):
@@ -49,11 +49,6 @@ class Detection(BaseModel):
     class_name: str
 
 
-class AlertRequest(BaseModel):
-    url: str
-    camera_data: CameraData = CameraData()
-
-
 class Request(BaseModel):
     ip: str
     nvr_name: str
@@ -78,13 +73,6 @@ class AlertsRequest(BaseModel):
         data = self.dict(exclude={"camera_data"})
         data["time_detect"] = str(datetime.now())  # Add current time
         return data
-
-
-class AlertResponse(BaseModel):
-    url: str
-    camera_data: CameraData
-    detections: List[Detection] | List
-    # time_created: datetime = datetime.now()
 
 
 class AlertsResponse(BaseModel):
