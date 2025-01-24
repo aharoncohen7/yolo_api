@@ -36,17 +36,20 @@ class SQSService:
             self.backend_queue_url = backend_queue_url
             self.yolo = yolo_service
             self.batch_size = batch_size
-            self._num_of_receives = 0
-            self._num_of_sends = 0
             self._metrics_lock = asyncio.Lock()
             self._metrics = {
                 'total_run_time': datetime.now(),
                 'work_run_time': timedelta(),
+                'no_motion': 0,
+                'no_detection': 0,
+                'no_detection_on_mask': 0,
+                'expires': 0,
+                'send_errors': 0,
+                'delete_errors': 0,
+                'get_errors': 0,
+                'general_errors': 0,
                 'receives': 0,
                 'sends': 0,
-                'no_motion': 0,
-                'expires': 0,
-                'errors': 0
             }
             self.time_process: Optional[datetime] = None
             self.initialized = True
@@ -79,7 +82,7 @@ class SQSService:
             return messages
         except Exception as e:
             self.logger.error(f"SQS receive error: {e}")
-            self._metrics['errors'] += 1
+            self._metrics['get_errors'] += 1
             return []
 
     async def send_message(self, detection_data: Dict) -> bool:
@@ -93,7 +96,7 @@ class SQSService:
             return True
         except Exception as e:
             self.logger.error(f"SQS send error: {e}")
-            self._metrics['errors'] += 1
+            self._metrics['send_errors'] += 1
             return False
 
     async def delete_message(self, receipt_handle: str) -> bool:
@@ -106,7 +109,7 @@ class SQSService:
             return True
         except Exception as e:
             self.logger.error(f"SQS delete error: {e}")
-            self._metrics['errors'] += 1
+            self._metrics['delete_errors'] += 1
             return False
 
     async def process_message(self, message: Dict):
@@ -120,10 +123,10 @@ class SQSService:
 
             # Add authentication or pre-signed URL logic if needed
             if not np.any(frames):
-                print("No valid frames retrieved -> type:", 'xml')
+                print("un valid frames retrieved -> type:", 'xml')
                 await self.delete_message(message['ReceiptHandle'])
-                self._metrics['expires'] += 1
                 async with self._metrics_lock:
+                    self._metrics['expires'] += 1
                     self._metrics['work_run_time'] += datetime.now() - start
                 return
 
@@ -134,9 +137,9 @@ class SQSService:
             if len(frames) > 1:
                 if not MaskService.detect_significant_movement(frames, mask):
                     print('No motion')
-                    self._metrics['no_motion'] += 1
                     await self.delete_message(message['ReceiptHandle'])
                     async with self._metrics_lock:
+                        self._metrics['no_motion'] += 1
                         self._metrics['work_run_time'] += datetime.now() - \
                             start
                     return
@@ -162,6 +165,11 @@ class SQSService:
                 await self.send_message(detection)
             else:
                 print('No Object Detected')
+                async with self._metrics_lock:
+                    if (detection_result and any(detection_result)):
+                        self._metrics['no_detection_on_mask'] += 1
+                    else:
+                        self._metrics['no_detection'] += 1
 
             # Delete processed message
             await self.delete_message(message['ReceiptHandle'])
@@ -171,6 +179,7 @@ class SQSService:
             # Add any processing logic here
         except Exception as e:
             async with self._metrics_lock:
+                self._metrics['general_errors'] += 1
                 self._metrics['work_run_time'] += datetime.now() - start
             self.logger.error(f"Message processing error: {e}")
 
@@ -192,4 +201,5 @@ class SQSService:
     def get_metrics(self) -> Dict:
         metric = self._metrics.copy()
         metric['total_run_time'] = datetime.now() - metric['total_run_time']
+        metric['not_sends'] = metric['receives'] - metric['sends']
         return metric
