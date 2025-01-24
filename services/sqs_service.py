@@ -6,6 +6,8 @@ import numpy as np
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 
+import pytz
+
 from modules import AlertsRequest, AlertsResponse, DetectionEncoder, YoloData
 from services import YoloService, MaskService, APIService
 
@@ -38,16 +40,17 @@ class SQSService:
             self._metrics = {
                 'total_run_time': datetime.now(),
                 'work_run_time': timedelta(),
+                'from_nvr_to_detection': timedelta(),
+                'receives': 0,
+                'sends': 0,
                 'no_motion': 0,
                 'no_detection': 0,
                 'no_detection_on_mask': 0,
                 'expires': 0,
+                'get_errors': 0,
                 'send_errors': 0,
                 'delete_errors': 0,
-                'get_errors': 0,
                 'general_errors': 0,
-                'receives': 0,
-                'sends': 0,
             }
             self.time_process: Optional[datetime] = None
             self.initialized = True
@@ -83,7 +86,7 @@ class SQSService:
             self._metrics['get_errors'] += 1
             return []
 
-    async def send_message(self, detection_data: Dict) -> bool:
+    async def send_message(self, detection_data: AlertsResponse) -> bool:
         try:
             sqs = await self.get_sqs_client()
             await sqs.send_message(
@@ -91,6 +94,8 @@ class SQSService:
                 MessageBody=json.dumps(detection_data, cls=DetectionEncoder)
             )
             self._metrics['sends'] += 1
+            # self._metrics['from_nvr_to_detection'] += (
+            #     datetime.now(pytz.UTC) - datetime.fromisoformat(detection_data.camera_data.event_time))
             return True
         except Exception as e:
             self.logger.error(f"SQS send error: {e}")
@@ -197,7 +202,7 @@ class SQSService:
                 await asyncio.sleep(poll_interval)
 
     def _format_time(self, time_delta: timedelta) -> str:
-        units = [('y', 365*24*60*60), ('m', 30*24*60*60), ('d', 24*60*60),
+        units = [('y', 365*24*60*60), ('mo', 30*24*60*60), ('d', 24*60*60),
                  ('h', 3600), ('m', 60), ('s', 1)]
 
         total_seconds = int(time_delta.total_seconds())
@@ -209,22 +214,19 @@ class SQSService:
         metric = self._metrics.copy()
         now = datetime.now()
 
-        # Store original timedeltas before formatting
-        total_run_time = now - metric['total_run_time']
-        work_run_time = metric['work_run_time']
-
-        # Format times for display
-        metric['total_run_time'] = self._format_time(total_run_time)
-        metric['work_run_time'] = self._format_time(work_run_time)
+        metric['total_run_time'] = self._format_time(
+            now - metric['total_run_time'])
+        metric['work_run_time'] = self._format_time(metric['work_run_time'])
+        metric['not_sends'] = metric['receives'] - metric['sends']
 
         # Calculate average detection time using original timedelta
         metric['avg_detection_time'] = self._format_time(
-            work_run_time / metric['no_detection']
+            self._metrics['work_run_time'] / metric['no_detection']
             if metric['no_detection'] else timedelta()
         )
 
         total_send_attempts = metric['receives'] + metric['sends']
-        metric['success_rate'] = (
+        metric['detection_rate'] = (
             metric['sends'] / total_send_attempts * 100) if total_send_attempts else 0
 
         total_errors = sum([
@@ -236,5 +238,4 @@ class SQSService:
         metric['error_rate'] = (
             total_errors / total_send_attempts * 100) if total_send_attempts else 0
 
-        metric['not_sends'] = metric['receives'] - metric['sends']
         return metric
