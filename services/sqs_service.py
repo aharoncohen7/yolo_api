@@ -121,7 +121,7 @@ class SQSService:
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
 
             if len(frames) > 1 and not MaskService.detect_significant_movement(frames, mask):
-                self.logger.info(f"No significant motion detected")
+                self.logger.info(f"No significant movement detected")
                 await self.delete_message(message['ReceiptHandle'])
                 await metrics_tracker.update('no_motion')
                 detection_happened = False
