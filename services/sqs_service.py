@@ -239,7 +239,7 @@ class SQSService:
             camera_to_detection_times = self._camera_to_detection_times.copy()
 
         total_run_time = datetime.now() - metric['total_run_time']
-        total_send_attempts = metric['receives']
+        total_send_attempts = metric['receives'] + metric['sends']
         total_errors = sum([
             metric['send_errors'],
             metric['delete_errors'],
