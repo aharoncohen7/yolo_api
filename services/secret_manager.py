@@ -19,5 +19,5 @@ def load_secret(secret_name):
         print(f"Error retrieving secret: {e}")
 
 
-def load_env(secret_name):
+def load_AWS_env(secret_name):
     load_secret(secret_name)

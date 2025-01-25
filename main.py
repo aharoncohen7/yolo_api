@@ -1,39 +1,3 @@
-import os
-import uvicorn
-import asyncio
-from fastapi import FastAPI
-
-from services import YoloService, SQSService, load_env
-# upload the env
-load_env('ILG-YOLO-SQS')
-
-# Initialize FastAPI app
-app = FastAPI(title="YOLO Detection Service")
-
-# Initialize YoloService
-yolo_service = YoloService()
-
-queue_for_yolo_url = os.getenv('queue_for_yolo_url')
-queue_for_backend_url = os.getenv('queue_for_backend_url')
-region = os.getenv('region')
-
-# Initialize SqsService
-SqsService = SQSService(
-    region=region,
-    data_for_queue_url=queue_for_yolo_url,
-    backend_queue_url=queue_for_backend_url,
-    yolo_service=yolo_service,
-)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize YOLO and SQS services when the app starts.
-    """
-    await yolo_service.initialize()
-    asyncio.create_task(SqsService.continuous_transfer())
-
 # @app.post("/yolo-detect/single", response_model=AlertResponse)
 # async def check_single_picture(request: AlertRequest):
 #     """
@@ -295,20 +259,46 @@ async def startup_event():
 #         print(f"Error processing alert: {str(e)}")
 #         raise HTTPException(status_code=500, detail=str(e))
 
+import os
+import uvicorn
+import asyncio
+from fastapi import FastAPI
+from services import YoloService, SQSService, load_AWS_env
+from modules import metrics_tracker
+
+load_AWS_env(secret_name='ILG-YOLO-SQS')
+
+app = FastAPI(title="YOLO Detection Service")
+
+yolo_service = YoloService()
+
+queue_for_yolo_url = os.getenv('queue_for_yolo_url')
+queue_for_backend_url = os.getenv('queue_for_backend_url')
+region = os.getenv('region')
+
+SqsService = SQSService(
+    region=region,
+    data_for_queue_url=queue_for_yolo_url,
+    backend_queue_url=queue_for_backend_url,
+    yolo_service=yolo_service,
+)
+
+
+@app.on_event("startup")
+async def startup_event():
+    await yolo_service.initialize()
+    asyncio.create_task(SqsService.continuous_transfer())
+
 
 @app.get("/health")
 async def get_metric():
-    # TODO: the metrics is only for one worker, the data need to send to a DB source
-    metric = await SqsService.get_metrics()
-    return {"data": metric, "status": 'healthy'}
+    metrics = metrics_tracker.calculate_metrics
+    return {"data": metrics, "status": 'healthy'}
 
 if __name__ == "__main__":
-    # Run FastAPI application with Uvicorn server for  => Development
-    # Run with `Gunicorn` on Ubuntu system\server for  => Production
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8000,
-        workers=4,
-        # reload=True
+        workers=4
     )

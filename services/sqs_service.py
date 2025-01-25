@@ -1,25 +1,17 @@
 import json
-import pytz
 import logging
 import asyncio
 import aioboto3
 import numpy as np
+from datetime import datetime
 from typing import List, Dict
 from pydantic import ValidationError
-from datetime import datetime, timedelta
 
 from services import YoloService, MaskService, APIService
-from modules import AlertsRequest, AlertsResponse, DetectionEncoder, YoloData
+from modules import AlertsRequest, AlertsResponse, DetectionEncoder, YoloData, metrics_tracker
 
 
 class SQSService:
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(
         self,
         region: str,
@@ -28,42 +20,16 @@ class SQSService:
         yolo_service: YoloService,
         batch_size: int = 20,
     ):
-        if not hasattr(self, 'initialized'):
-            self.logger = logging.getLogger(self.__class__.__name__)
-            self.logger.setLevel(logging.INFO)
-            self.logger.addHandler(logging.StreamHandler())
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(logging.INFO)
+        self.logger.addHandler(logging.StreamHandler())
 
-            self.session = aioboto3.Session(region_name=region)
-            self._sqs_client = None
-            self.data_for_queue_url = data_for_queue_url
-            self.backend_queue_url = backend_queue_url
-            self.yolo = yolo_service
-            self.batch_size = batch_size
-            self._metrics_lock = asyncio.Lock()
-
-            self._metrics = {
-                'total_run_time': datetime.now(),
-                'receives': 0,
-                'sends': 0,
-                'message_in_action': 0,
-                'no_motion': 0,
-                'no_detection': 0,
-                'no_detection_on_mask': 0,
-                'expires': 0,
-                'get_errors': 0,
-                'send_errors': 0,
-                'delete_errors': 0,
-                'general_errors': 0,
-            }
-
-            self._processing_times = {
-                'with_detection': [],
-                'without_detection': [],
-                'total': []
-            }
-
-            self._camera_to_detection_times = []
-            self.initialized = True
+        self.session = aioboto3.Session(region_name=region)
+        self._sqs_client = None
+        self.data_for_queue_url = data_for_queue_url
+        self.backend_queue_url = backend_queue_url
+        self.yolo = yolo_service
+        self.batch_size = batch_size
 
     async def get_sqs_client(self):
         try:
@@ -86,13 +52,13 @@ class SQSService:
                 VisibilityTimeout=10
             )
             messages = response.get('Messages', [])
-            self._metrics['receives'] += len(messages)
-            self._metrics['message_in_action'] += len(messages)
+            await metrics_tracker.update('receives', len(messages))
+            await metrics_tracker.update('message_in_action', len(messages))
             return messages
         except Exception as e:
             self.logger.error(
                 "Failed to receive messages from SQS", exc_info=True)
-            self._metrics['get_errors'] += 1
+            await metrics_tracker.update('errors', {'get': 1})
             return []
 
     async def send_message(self, detection_data: AlertsResponse) -> bool:
@@ -106,7 +72,7 @@ class SQSService:
             return True
         except Exception as e:
             self.logger.error("Failed to send message to SQS", exc_info=True)
-            self._metrics['send_errors'] += 1
+            await metrics_tracker.update('errors', {'send': 1})
             return False
 
     async def delete_message(self, receipt_handle: str) -> bool:
@@ -116,13 +82,108 @@ class SQSService:
                 QueueUrl=self.data_for_queue_url,
                 ReceiptHandle=receipt_handle
             )
-            self._metrics['message_in_action'] -= 1
+            await metrics_tracker.update('message_in_action', -1)
             return True
         except Exception as e:
             self.logger.error(
                 "Failed to delete message from SQS", exc_info=True)
-            self._metrics['delete_errors'] += 1
+            await metrics_tracker.update('errors', {'delete': 1})
             return False
+
+    async def process_message(self, message: Dict):
+        start_time = datetime.now()
+        try:
+            try:
+                message_body = AlertsRequest(**json.loads(message['Body']))
+            except ValidationError as ve:
+                self.logger.warning(f"Validation error for message: {
+                                    message['MessageId']}", exc_info=True)
+                await self.delete_message(message['ReceiptHandle'])
+                return
+
+            S3urls = message_body.snapshots
+            camera_data = message_body.camera_data
+            frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
+
+            if not all(isinstance(frame, np.ndarray) for frame in frames):
+                self.logger.warning(f"Expired or invalid image URLs for message: {
+                                    message['MessageId']}")
+                await self.delete_message(message['ReceiptHandle'])
+                await metrics_tracker.update('expires')
+                detection_happened = False
+                await metrics_tracker.add_processing_time(
+                    (datetime.now() - start_time).total_seconds(),
+                    detection_happened
+                )
+                return
+
+            mask = MaskService.create_combined_mask(
+                frames[0].shape, camera_data.masks, camera_data.is_focus)
+
+            if len(frames) > 1 and not MaskService.detect_significant_movement(frames, mask):
+                self.logger.info(f"No significant motion detected")
+                await self.delete_message(message['ReceiptHandle'])
+                await metrics_tracker.update('no_motion')
+                detection_happened = False
+                await metrics_tracker.add_processing_time(
+                    (datetime.now() - start_time).total_seconds(),
+                    detection_happened
+                )
+                return
+
+            yolo_data = YoloData(
+                image=frames,
+                confidence=camera_data.confidence,
+                classes=camera_data.classes
+            )
+            detection_result = await self.yolo.add_data_to_queue(yolo_data=yolo_data)
+            detections = [MaskService.get_detections_on_mask(
+                det, mask, frames[0].shape) for det in detection_result]
+
+            if detections and any(detections):
+                detection = AlertsResponse(
+                    camera_data=message_body.without_camera_data(),
+                    detections=detections
+                )
+                camera_event_time = datetime.fromisoformat(
+                    str(detection.camera_data.event_time))
+                detection_time = datetime.now(camera_event_time.tzinfo)
+                camera_to_detection_time = (
+                    detection_time - camera_event_time).total_seconds()
+
+                detection_happened = True
+                await metrics_tracker.add_processing_time(
+                    (detection_time - start_time.astimezone(camera_event_time.tzinfo)
+                     ).total_seconds(),
+                    detection_happened
+                )
+                await metrics_tracker.add_camera_detection_time(camera_to_detection_time)
+
+                MaskService.print_results(detections)
+                await self.send_message(detection)
+            else:
+                if detection_result and any(detection_result):
+                    self.logger.info(f"No detections on mask for message: {
+                                     message['MessageId']}")
+                    await metrics_tracker.update('no_detection_on_mask')
+                else:
+                    self.logger.info(f"No detections for message: {
+                                     message['MessageId']}")
+                    await metrics_tracker.update('no_detection')
+
+                detection_happened = False
+                await metrics_tracker.add_processing_time(
+                    (datetime.now() - start_time).total_seconds(),
+                    detection_happened
+                )
+
+            await self.delete_message(message['ReceiptHandle'])
+
+        except Exception as e:
+            await metrics_tracker.update('errors', {'general': 1})
+            await metrics_tracker.update('message_in_action', -1)
+            self.logger.error(f"Error processing message: {
+                              message.get('MessageId', 'Unknown ID')}", exc_info=True)
 
     async def continuous_transfer(self, poll_interval: int = 0):
         while True:
@@ -145,151 +206,5 @@ class SQSService:
                     "Error in continuous transfer loop", exc_info=True)
                 await asyncio.sleep(poll_interval)
 
-    async def process_message(self, message: Dict):
-        start_time = datetime.now()
-        try:
-            try:
-                message_body = AlertsRequest(**json.loads(message['Body']))
-            except ValidationError as ve:
-                self.logger.warning(f"Validation error for message: {
-                                    message['MessageId']}", exc_info=True)
-                await self.delete_message(message['ReceiptHandle'])
-                return
-
-            S3urls = message_body.snapshots
-            camera_data = message_body.camera_data
-            frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
-
-            if not all(isinstance(frame, np.ndarray) for frame in frames):
-                self.logger.warning(f"Expired or invalid image URLs for message: {
-                                    message['MessageId']}")
-                await self.delete_message(message['ReceiptHandle'])
-                async with self._metrics_lock:
-                    self._metrics['expires'] += 1
-                    self._processing_times['without_detection'].append(
-                        (datetime.now() - start_time).total_seconds())
-                return
-
-            mask = MaskService.create_combined_mask(
-                frames[0].shape, camera_data.masks, camera_data.is_focus)
-
-            if len(frames) > 1 and not MaskService.detect_significant_movement(frames, mask):
-                self.logger.info(f"No significant motion detected")
-                await self.delete_message(message['ReceiptHandle'])
-                async with self._metrics_lock:
-                    self._metrics['no_motion'] += 1
-                    self._processing_times['without_detection'].append(
-                        (datetime.now() - start_time).total_seconds())
-                return
-
-            yolo_data = YoloData(
-                image=frames,
-                confidence=camera_data.confidence,
-                classes=camera_data.classes
-            )
-            detection_result = await self.yolo.add_data_to_queue(yolo_data=yolo_data)
-            detections = [MaskService.get_detections_on_mask(
-                det, mask, frames[0].shape) for det in detection_result]
-
-            if detections and any(detections):
-                detection = AlertsResponse(
-                    camera_data=message_body.without_camera_data(),
-                    detections=detections
-                )
-                async with self._metrics_lock:
-                    camera_event_time = datetime.fromisoformat(
-                        str(detection.camera_data.event_time))
-                    detection_time = datetime.now(camera_event_time.tzinfo)
-                    camera_to_detection_time = (
-                        detection_time - camera_event_time).total_seconds()
-                    self._metrics['sends'] += 1
-                    self._processing_times['with_detection'].append(
-                        (detection_time - start_time.astimezone(camera_event_time.tzinfo)).total_seconds())
-                    self._camera_to_detection_times.append(
-                        camera_to_detection_time)
-
-                MaskService.print_results(detections)
-                await self.send_message(detection)
-            else:
-                async with self._metrics_lock:
-                    if detection_result and any(detection_result):
-                        self.logger.info(f"No detections on mask for message: {
-                                         message['MessageId']}")
-                        self._metrics['no_detection_on_mask'] += 1
-                    else:
-                        self.logger.info(f"No detections for message: {
-                                         message['MessageId']}")
-                        self._metrics['no_detection'] += 1
-                    self._processing_times['without_detection'].append(
-                        (datetime.now() - start_time).total_seconds())
-
-            await self.delete_message(message['ReceiptHandle'])
-
-        except Exception as e:
-            async with self._metrics_lock:
-                self._metrics['general_errors'] += 1
-                self._metrics['message_in_action'] -= 1
-            self.logger.error(f"Error processing message: {
-                              message.get('MessageId', 'Unknown ID')}", exc_info=True)
-
     async def get_metrics(self) -> Dict:
-        async with self._metrics_lock:
-            metric = self._metrics.copy()
-            processing_times = self._processing_times.copy()
-            camera_to_detection_times = self._camera_to_detection_times.copy()
-
-        total_run_time = datetime.now() - metric['total_run_time']
-        total_send_attempts = metric['receives'] + metric['sends']
-        total_errors = sum([
-            metric['send_errors'],
-            metric['delete_errors'],
-            metric['get_errors'],
-            metric['general_errors']
-        ])
-
-        def format_time(time_delta: timedelta) -> str:
-            units = [('Y', 365*24*60*60), ('M', 30*24*60*60), ('D', 24*60*60),
-                     ('h', 3600), ('m', 60), ('s', 1)]
-
-            total_seconds = int(time_delta.total_seconds())
-
-            result = []
-            for unit in units:
-                unit_qty = total_seconds // unit[1]
-                if unit_qty > 0:
-                    result.append(f"{unit_qty}{unit[0]}")
-                    total_seconds -= unit_qty * unit[1]
-
-            return ' '.join(result) if result else '0s'
-
-        def calculate_time_stats(times: List[float]) -> Dict:
-            return {
-                'avg': format_time(timedelta(seconds=np.mean(times) if times else 0)),
-                'median': format_time(timedelta(seconds=np.median(times) if times else 0)),
-                'std': format_time(timedelta(seconds=np.std(times) if times else 0))
-            }
-
-        def calculate_rate(part: int, total: int) -> float:
-            return round((part / total * 100) if total else 0, 3)
-
-        metrics = {
-            'total_run_time': format_time(total_run_time),
-            'work_run_time': format_time(timedelta(seconds=sum(processing_times['with_detection'] + processing_times['without_detection']))),
-            'receives': metric['receives'],
-            'sends': metric['sends'],
-            'message_in_action': metric['message_in_action'],
-            'no_motion': metric['no_motion'],
-            'no_detection': metric['no_detection'],
-            'no_detection_on_mask': metric['no_detection_on_mask'],
-            'expires': metric['expires'],
-            'processing_times': {
-                'with_detection': format_time(timedelta(seconds=sum(processing_times['with_detection']))),
-                'without_detection': format_time(timedelta(seconds=sum(processing_times['without_detection']))),
-            },
-            'camera_to_detection_times': calculate_time_stats(camera_to_detection_times),
-            'detection_rate': calculate_rate(metric['sends'], total_send_attempts),
-            'false_detection_rate': calculate_rate(total_send_attempts - (metric['sends'] + metric['expires'] + self._metrics['message_in_action']), total_send_attempts),
-            'error_rate': calculate_rate(total_errors, total_send_attempts),
-        }
-
-        return metrics
+        return metrics_tracker.calculate_metrics()
