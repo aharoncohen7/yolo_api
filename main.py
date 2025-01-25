@@ -292,7 +292,7 @@ async def startup_event():
 
 @app.get("/health")
 async def get_metric():
-    metrics = metrics_tracker.calculate_metrics
+    metrics = metrics_tracker.calculate_metrics()
     return {"data": metrics, "status": 'healthy'}
 
 if __name__ == "__main__":
