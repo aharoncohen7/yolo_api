@@ -163,10 +163,10 @@ class SQSService:
                 await self.send_message(detection)
             else:
                 if detection_result and any(detection_result):
-                    self.logger.info(f"Detections Not on mask")
+                    self.logger.info(f"Detection outside the mask")
                     await metrics_tracker.update('no_detection_on_mask')
                 else:
-                    self.logger.info(f"Movement but No detections")
+                    self.logger.info(f"Movement but No detection")
                     await metrics_tracker.update('no_detection')
 
                 detection_happened = False
