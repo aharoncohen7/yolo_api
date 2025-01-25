@@ -133,16 +133,13 @@ class MetricsTracker:
         def format_time(time_delta: timedelta) -> str:
             units = [('Y', 365*24*60*60), ('M', 30*24*60*60), ('D', 24*60*60),
                      ('h', 3600), ('m', 60), ('s', 1)]
-
             total_seconds = int(time_delta.total_seconds())
-
             result = []
             for unit in units:
                 unit_qty = total_seconds // unit[1]
                 if unit_qty > 0:
                     result.append(f"{unit_qty}{unit[0]}")
                     total_seconds -= unit_qty * unit[1]
-
             return ' '.join(result) if result else '0s'
 
         def calculate_time_stats(times: List[float]) -> dict:
@@ -157,9 +154,12 @@ class MetricsTracker:
 
         total_errors = sum(self.errors.values())
 
+        total_run_time_str = format_time(total_run_time)
+        work_run_time_str = format_time(timedelta(seconds=sum(self.processing_times)))
+
         return {
-            'total_run_time': format_time(total_run_time),
-            'work_run_time': format_time(timedelta(seconds=sum(self.processing_times))),
+            'total_run_time': total_run_time_str,
+            'work_run_time': work_run_time_str,
             'receives': self.receives,
             'sends': self.sends,
             'message_in_action': self.message_in_action,
