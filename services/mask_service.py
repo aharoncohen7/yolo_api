@@ -63,7 +63,6 @@ class MaskService:
             img_y, img_x = shape[:2]
 
             for detect in detections:
-                print(1)
                 x1, x2, y1, y2 = detect.bbox.x1, detect.bbox.x2, detect.bbox.y1, detect.bbox.y2
 
                 points = [
