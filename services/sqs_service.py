@@ -31,14 +31,7 @@ class SQSService:
         if not hasattr(self, 'initialized'):
             self.logger = logging.getLogger(self.__class__.__name__)
             self.logger.setLevel(logging.INFO)
-
-            formatter = logging.Formatter(
-                '%(asctime)s - %(levelname)s - %(message)s')
             self.logger.addHandler(logging.StreamHandler())
-            self.logger.addHandler(
-                logging.FileHandler('yolo.log', mode='a'))
-            for handler in self.logger.handlers:
-                handler.setFormatter(formatter)
 
             self.session = aioboto3.Session(region_name=region)
             self._sqs_client = None
@@ -52,6 +45,7 @@ class SQSService:
                 'total_run_time': datetime.now(),
                 'receives': 0,
                 'sends': 0,
+                'message_in_action': 0,
                 'no_motion': 0,
                 'no_detection': 0,
                 'no_detection_on_mask': 0,
@@ -92,8 +86,8 @@ class SQSService:
                 VisibilityTimeout=10
             )
             messages = response.get('Messages', [])
-            self.logger.info(f"Received {len(messages)} messages")
             self._metrics['receives'] += len(messages)
+            self._metrics['message_in_action'] += len(messages)
             return messages
         except Exception as e:
             self.logger.error(
@@ -122,6 +116,7 @@ class SQSService:
                 QueueUrl=self.data_for_queue_url,
                 ReceiptHandle=receipt_handle
             )
+            self._metrics['message_in_action'] -= 1
             return True
         except Exception as e:
             self.logger.error(
@@ -129,7 +124,7 @@ class SQSService:
             self._metrics['delete_errors'] += 1
             return False
 
-    async def continuous_transfer(self, poll_interval: int = 5):
+    async def continuous_transfer(self, poll_interval: int = 0):
         while True:
             try:
                 messages = await self.get_messages()
@@ -233,6 +228,7 @@ class SQSService:
         except Exception as e:
             async with self._metrics_lock:
                 self._metrics['general_errors'] += 1
+                self._metrics['message_in_action'] -= 1
             self.logger.error(f"Error processing message: {
                               message.get('MessageId', 'Unknown ID')}", exc_info=True)
 
@@ -281,6 +277,7 @@ class SQSService:
             'work_run_time': format_time(timedelta(seconds=sum(processing_times['with_detection'] + processing_times['without_detection']))),
             'receives': metric['receives'],
             'sends': metric['sends'],
+            'message_in_action': metric['message_in_action'],
             'no_motion': metric['no_motion'],
             'no_detection': metric['no_detection'],
             'no_detection_on_mask': metric['no_detection_on_mask'],
@@ -291,7 +288,7 @@ class SQSService:
             },
             'camera_to_detection_times': calculate_time_stats(camera_to_detection_times),
             'detection_rate': calculate_rate(metric['sends'], total_send_attempts),
-            'false_detection_rate': calculate_rate(total_send_attempts - (metric['sends'] + metric['expires']), total_send_attempts),
+            'false_detection_rate': calculate_rate(total_send_attempts - (metric['sends'] + metric['expires'] + self._metrics['message_in_action']), total_send_attempts),
             'error_rate': calculate_rate(total_errors, total_send_attempts),
         }
 

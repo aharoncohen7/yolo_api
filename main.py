@@ -4,6 +4,8 @@ import asyncio
 from fastapi import FastAPI
 
 from services import YoloService, SQSService, load_env
+# upload the env
+load_env('ILG-YOLO-SQS')
 
 # Initialize FastAPI app
 app = FastAPI(title="YOLO Detection Service")
@@ -11,27 +13,24 @@ app = FastAPI(title="YOLO Detection Service")
 # Initialize YoloService
 yolo_service = YoloService()
 
+queue_for_yolo_url = os.getenv('queue_for_yolo_url')
+queue_for_backend_url = os.getenv('queue_for_backend_url')
+region = os.getenv('region')
+
+# Initialize SqsService
+SqsService = SQSService(
+    region=region,
+    data_for_queue_url=queue_for_yolo_url,
+    backend_queue_url=queue_for_backend_url,
+    yolo_service=yolo_service,
+)
+
 
 @app.on_event("startup")
 async def startup_event():
     """
     Initialize YOLO and SQS services when the app starts.
     """
-    # upload the env
-    load_env('ILG-YOLO-SQS')
-
-    queue_for_yolo_url = os.getenv('queue_for_yolo_url')
-    queue_for_backend_url = os.getenv('queue_for_backend_url')
-    region = os.getenv('region')
-
-    # Initialize SqsService
-    SqsService = SQSService(
-        region=region,
-        data_for_queue_url=queue_for_yolo_url,
-        backend_queue_url=queue_for_backend_url,
-        yolo_service=yolo_service,
-    )
-
     await yolo_service.initialize()
     asyncio.create_task(SqsService.continuous_transfer())
 
@@ -299,6 +298,7 @@ async def startup_event():
 
 @app.get("/health")
 async def get_metric():
+    # TODO: the metrics is only for one worker, the data need to send to a DB source
     metric = await SqsService.get_metrics()
     return {"data": metric, "status": 'healthy'}
 
