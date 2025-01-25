@@ -9,20 +9,21 @@ load_env('ILG-YOLO-SQS')
 queue_for_yolo_url = os.getenv('queue_for_yolo_url')
 queue_for_backend_url = os.getenv('queue_for_backend_url')
 region = os.getenv('region')
+print(region, queue_for_backend_url, queue_for_yolo_url)
 
 # Initialize FastAPI app
 app = FastAPI(title="YOLO Detection Service")
 
 # Initialize YoloService
-# yolo_service = YoloService()
+yolo_service = YoloService()
 
 # # Initialize SqsService
-# SqsService = SQSService(
-#     region=region,
-#     data_for_queue_url=queue_for_yolo_url,
-#     backend_queue_url=queue_for_backend_url,
-#     yolo_service=yolo_service,
-# )
+SqsService = SQSService(
+    region=region,
+    data_for_queue_url=queue_for_yolo_url,
+    backend_queue_url=queue_for_backend_url,
+    yolo_service=yolo_service,
+)
 
 
 @app.on_event("startup")
@@ -30,8 +31,8 @@ async def startup_event():
     """
     Initialize YOLO and SQS services when the app starts.
     """
-    # await yolo_service.initialize()
-    # asyncio.create_task(SqsService.continuous_transfer())
+    await yolo_service.initialize()
+    asyncio.create_task(SqsService.continuous_transfer())
 
 # @app.post("/yolo-detect/single", response_model=AlertResponse)
 # async def check_single_picture(request: AlertRequest):
@@ -295,10 +296,10 @@ async def startup_event():
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.get("/health")
-# async def get_metric():
-#     metric = await SqsService.get_metrics()
-#     return {"data": metric, "status": 'healthy'}
+@app.get("/health")
+async def get_metric():
+    metric = await SqsService.get_metrics()
+    return {"data": metric, "status": 'healthy'}
 
 if __name__ == "__main__":
     # Run FastAPI application with Uvicorn server for  => Development
