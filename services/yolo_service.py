@@ -6,6 +6,8 @@ from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from modules import Detection, YoloData, Xyxy
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class YoloService:

@@ -68,10 +68,10 @@ class SQSService:
                 QueueUrl=self.backend_queue_url,
                 MessageBody=json.dumps(detection_data, cls=DetectionEncoder)
             )
-            self.logger.info(f"Successfully sent detection data")
+            self.logger.info(f"✅ Successfully sent detection data")
             return True
         except Exception as e:
-            self.logger.error("Failed to send message to SQS", exc_info=True)
+            self.logger.error("❌ Failed to send message to SQS", exc_info=True)
             await metrics_tracker.update('errors', {'send': 1})
             return False
 
@@ -86,7 +86,7 @@ class SQSService:
             return True
         except Exception as e:
             self.logger.error(
-                "Failed to delete message from SQS", exc_info=True)
+                "❌ Failed to delete message from SQS", exc_info=True)
             await metrics_tracker.update('errors', {'delete': 1})
             return False
 
@@ -96,7 +96,7 @@ class SQSService:
             try:
                 message_body = AlertsRequest(**json.loads(message['Body']))
             except ValidationError as ve:
-                self.logger.warning(f"Validation error for message: {
+                self.logger.warning(f"⚠️ Validation error for message: {
                                     message['MessageId']}", exc_info=True)
                 await self.delete_message(message['ReceiptHandle'])
                 return
@@ -106,7 +106,7 @@ class SQSService:
             frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
-                self.logger.warning(f"Expired or invalid image URLs for message: {
+                self.logger.warning(f"❌ Expired or invalid image URLs for message: {
                                     message['MessageId']}")
                 await self.delete_message(message['ReceiptHandle'])
                 await metrics_tracker.update('expires')
@@ -121,7 +121,7 @@ class SQSService:
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
 
             if len(frames) > 1 and isinstance(mask, np.ndarray) and not MaskService.detect_significant_movement(frames, mask):
-                self.logger.info(f"No significant movement detected")
+                self.logger.info(f"🛑 No significant movement detected")
                 await self.delete_message(message['ReceiptHandle'])
                 await metrics_tracker.update('no_motion')
                 detection_happened = False
@@ -163,10 +163,10 @@ class SQSService:
                 await self.send_message(detection)
             else:
                 if detection_result and any(detection_result):
-                    self.logger.info(f"Detection outside the mask")
+                    self.logger.info(f"🔍 Detection outside the mask")
                     await metrics_tracker.update('no_detection_on_mask')
                 else:
-                    self.logger.info(f"Movement but No detection")
+                    self.logger.info(f"🚶‍♂️ Movement but No detection")
                     await metrics_tracker.update('no_detection')
 
                 detection_happened = False
@@ -180,14 +180,16 @@ class SQSService:
         except Exception as e:
             await metrics_tracker.update('errors', {'general': 1})
             await metrics_tracker.update('message_in_action', -1)
-            self.logger.error(f"Error processing message: {
+            self.logger.error(f"❌ Error processing message: {
                               message.get('MessageId', 'Unknown ID')}", exc_info=True)
 
     async def continuous_transfer(self, poll_interval: int = 0):
         while True:
             try:
                 messages = await self.get_messages()
-                self.logger.info(f"Processing {len(messages)} messages")
+                if len(messages) > 0:
+                    self.logger.info(
+                        f"📬 Processing {len(messages)} messages")
                 if messages:
                     tasks = [self.process_message(msg) for msg in messages]
                     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -195,13 +197,13 @@ class SQSService:
                     for result in results:
                         if isinstance(result, Exception):
                             self.logger.error(
-                                "Error while processing a message", exc_info=result)
+                                "❌ Error while processing a message", exc_info=result)
 
                 await asyncio.sleep(poll_interval)
 
             except Exception as e:
                 self.logger.error(
-                    "Error in continuous transfer loop", exc_info=True)
+                    "❌ Error in continuous transfer loop", exc_info=True)
                 await asyncio.sleep(poll_interval)
 
     async def get_metrics(self) -> Dict:
