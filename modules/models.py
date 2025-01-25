@@ -13,8 +13,8 @@ class Coordinates(BaseModel):
 
 
 class Shape(BaseModel):
-    shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates(
-        x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
+    # shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates( x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
+    shape: List[Coordinates] = []
 
 
 class Xyxy(BaseModel):
@@ -155,7 +155,8 @@ class MetricsTracker:
         total_errors = sum(self.errors.values())
 
         total_run_time_str = format_time(total_run_time)
-        work_run_time_str = format_time(timedelta(seconds=sum(self.processing_times)))
+        work_run_time_str = format_time(
+            timedelta(seconds=sum(self.processing_times)))
 
         return {
             'total_run_time': total_run_time_str,
