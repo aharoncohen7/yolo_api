@@ -4,6 +4,9 @@ tests/*
 # vscode files
 .vscode/*
 
+# key files
+keys/*
+
 # python run files
 __py**__
 .venv/**
@@ -15,7 +18,5 @@ venv**
 
 # log files
 **.log
-# key files
-keys/*
 
 # requirements_all.txt
