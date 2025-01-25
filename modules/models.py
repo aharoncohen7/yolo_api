@@ -96,7 +96,7 @@ class MetricsTracker:
     start_time: datetime = field(default_factory=datetime.now)
     receives: int = 0
     sends: int = 0
-    message_in_action: int = 0
+    Alert_in_action: int = 0
     no_motion: int = 0
     no_detection: int = 0
     no_detection_on_mask: int = 0
@@ -163,7 +163,7 @@ class MetricsTracker:
             '🔧 work_run_time': work_run_time_str,
             '📥 receives': self.receives,
             '✅ sends': self.sends,
-            '🔄 message_in_action': self.message_in_action,
+            '🔄 Alert_in_action': self.Alert_in_action,
             '🚫🚶 no_movement': self.no_motion,
             '❌🔍 no_detection': self.no_detection,
             '🚫🎭 no_detection_on_mask': self.no_detection_on_mask,

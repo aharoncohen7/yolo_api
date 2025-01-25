@@ -42,7 +42,7 @@ class SQSService:
             self._sqs_client = None
             raise
 
-    async def get_messages(self) -> List[Dict]:
+    async def get_Alerts(self) -> List[Dict]:
         try:
             sqs = await self.get_sqs_client()
             response = await sqs.receive_message(
@@ -51,17 +51,17 @@ class SQSService:
                 WaitTimeSeconds=5,
                 VisibilityTimeout=10
             )
-            messages = response.get('Messages', [])
-            await metrics_tracker.update('receives', len(messages))
-            await metrics_tracker.update('message_in_action', len(messages))
-            return messages
+            Alerts = response.get('Messages', [])
+            await metrics_tracker.update('receives', len(Alerts))
+            await metrics_tracker.update('Alert_in_action', len(Alerts))
+            return Alerts
         except Exception as e:
             self.logger.error(
-                "Failed to receive messages from SQS", exc_info=True)
+                "Failed to receive Alerts from SQS", exc_info=True)
             await metrics_tracker.update('errors', {'get': 1})
             return []
 
-    async def send_message(self, detection_data: AlertsResponse) -> bool:
+    async def send_Alert(self, detection_data: AlertsResponse) -> bool:
         try:
             sqs = await self.get_sqs_client()
             await sqs.send_message(
@@ -71,44 +71,43 @@ class SQSService:
             self.logger.info(f"✅ Successfully sent detection data")
             return True
         except Exception as e:
-            self.logger.error("❌ Failed to send message to SQS", exc_info=True)
+            self.logger.error("❌ Failed to send Alert to SQS", exc_info=True)
             await metrics_tracker.update('errors', {'send': 1})
             return False
 
-    async def delete_message(self, receipt_handle: str) -> bool:
+    async def delete_Alert(self, receipt_handle: str) -> bool:
         try:
             sqs = await self.get_sqs_client()
             await sqs.delete_message(
                 QueueUrl=self.data_for_queue_url,
                 ReceiptHandle=receipt_handle
             )
-            await metrics_tracker.update('message_in_action', -1)
+            await metrics_tracker.update('Alert_in_action', -1)
             return True
         except Exception as e:
             self.logger.error(
-                "❌ Failed to delete message from SQS", exc_info=True)
+                "❌ Failed to delete Alert from SQS", exc_info=True)
             await metrics_tracker.update('errors', {'delete': 1})
             return False
 
-    async def process_message(self, message: Dict):
+    async def process_Alert(self, Alert: Dict):
         start_time = datetime.now()
         try:
             try:
-                message_body = AlertsRequest(**json.loads(message['Body']))
+                Alert_body = AlertsRequest(**json.loads(Alert['Body']))
             except ValidationError as ve:
-                self.logger.warning(f"⚠️ Validation error for message: {
-                                    message['MessageId']}", exc_info=True)
-                await self.delete_message(message['ReceiptHandle'])
+                self.logger.warning(
+                    f"⚠️ Validation error for Alert", exc_info=True)
+                await self.delete_Alert(Alert['ReceiptHandle'])
                 return
 
-            S3urls = message_body.snapshots
-            camera_data = message_body.camera_data
+            S3urls = Alert_body.snapshots
+            camera_data = Alert_body.camera_data
             frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
-                self.logger.warning(f"❌ Expired or invalid image URLs for message: {
-                                    message['MessageId']}")
-                await self.delete_message(message['ReceiptHandle'])
+                self.logger.warning(f"❌ Expired or invalid image URLs")
+                await self.delete_Alert(Alert['ReceiptHandle'])
                 await metrics_tracker.update('expires')
                 detection_happened = False
                 await metrics_tracker.add_processing_time(
@@ -122,7 +121,7 @@ class SQSService:
 
             if len(frames) > 1 and isinstance(mask, np.ndarray) and not MaskService.detect_significant_movement(frames, mask):
                 self.logger.info(f"🛑 No significant movement detected")
-                await self.delete_message(message['ReceiptHandle'])
+                await self.delete_Alert(Alert['ReceiptHandle'])
                 await metrics_tracker.update('no_motion')
                 detection_happened = False
                 await metrics_tracker.add_processing_time(
@@ -142,7 +141,7 @@ class SQSService:
 
             if detections and any(detections):
                 detection = AlertsResponse(
-                    camera_data=message_body.without_camera_data(),
+                    camera_data=Alert_body.without_camera_data(),
                     detections=detections
                 )
                 camera_event_time = datetime.fromisoformat(
@@ -160,7 +159,7 @@ class SQSService:
                 await metrics_tracker.add_camera_detection_time(camera_to_detection_time)
 
                 MaskService.print_results(detections)
-                await self.send_message(detection)
+                await self.send_Alert(detection)
             else:
                 if detection_result and any(detection_result):
                     self.logger.info(f"🔍 Detection outside the mask")
@@ -175,29 +174,29 @@ class SQSService:
                     detection_happened
                 )
 
-            await self.delete_message(message['ReceiptHandle'])
+            await self.delete_Alert(Alert['ReceiptHandle'])
 
         except Exception as e:
             await metrics_tracker.update('errors', {'general': 1})
-            await metrics_tracker.update('message_in_action', -1)
-            self.logger.error(f"❌ Error processing message: {
-                              message.get('MessageId', 'Unknown ID')}", exc_info=True)
+            await metrics_tracker.update('Alert_in_action', -1)
+            self.logger.error(f"❌ Error processing Alert: {
+                              Alert.get('AlertId', 'Unknown ID')}", exc_info=True)
 
     async def continuous_transfer(self, poll_interval: int = 0):
         while True:
             try:
-                messages = await self.get_messages()
-                if len(messages) > 0:
+                Alerts = await self.get_Alerts()
+                if len(Alerts) > 0:
                     self.logger.info(
-                        f"📬 Processing {len(messages)} messages")
-                if messages:
-                    tasks = [self.process_message(msg) for msg in messages]
+                        f"📬 Processing {len(Alerts)} Alerts")
+                if Alerts:
+                    tasks = [self.process_Alert(msg) for msg in Alerts]
                     results = await asyncio.gather(*tasks, return_exceptions=True)
 
                     for result in results:
                         if isinstance(result, Exception):
                             self.logger.error(
-                                "❌ Error while processing a message", exc_info=result)
+                                "❌ Error while processing a Alerts", exc_info=result)
 
                 await asyncio.sleep(poll_interval)
 
