@@ -120,7 +120,7 @@ class SQSService:
             mask = MaskService.create_combined_mask(
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
 
-            if len(frames) > 1 and not MaskService.detect_significant_movement(frames, mask):
+            if len(frames) > 1 and isinstance(mask, np.ndarray) and not MaskService.detect_significant_movement(frames, mask):
                 self.logger.info(f"No significant movement detected")
                 await self.delete_message(message['ReceiptHandle'])
                 await metrics_tracker.update('no_motion')
@@ -163,12 +163,10 @@ class SQSService:
                 await self.send_message(detection)
             else:
                 if detection_result and any(detection_result):
-                    self.logger.info(f"No detections on mask for message: {
-                                     message['MessageId']}")
+                    self.logger.info(f"Detections Not on mask")
                     await metrics_tracker.update('no_detection_on_mask')
                 else:
-                    self.logger.info(f"No detections for message: {
-                                     message['MessageId']}")
+                    self.logger.info(f"Movement but No detections")
                     await metrics_tracker.update('no_detection')
 
                 detection_happened = False

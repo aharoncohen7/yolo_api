@@ -38,7 +38,8 @@ class MaskService:
             combined_mask = mask_regions if is_focus else 1 - mask_regions
             return combined_mask
 
-        return np.zeros(image_shape[:2], dtype=np.uint8)
+        # return np.ones(image_shape[:2], dtype=np.uint8)
+        return []
 
     @staticmethod
     def get_detections_on_mask(
@@ -62,6 +63,7 @@ class MaskService:
             img_y, img_x = shape[:2]
 
             for detect in detections:
+                print(1)
                 x1, x2, y1, y2 = detect.bbox.x1, detect.bbox.x2, detect.bbox.y1, detect.bbox.y2
 
                 points = [
@@ -127,6 +129,7 @@ class MaskService:
         Returns:
             True if significant motion is detected, False otherwise.
         """
+
         if len(frames) < 2:
             raise ValueError("At least two frames are required.")
 
