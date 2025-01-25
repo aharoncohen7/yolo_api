@@ -161,17 +161,17 @@ class MetricsTracker:
         return {
             '🕒 total_run_time': total_run_time_str,
             '🔧 work_run_time': work_run_time_str,
-            '📥 receives': f"{self.receives} Incoming Messages",
-            '📤 sends': f"{self.sends} Outgoing Messages",
-            '🔄 message_in_action': f"{self.message_in_action} In Progress",
-            '🚫🤖 no_motion': f"{self.no_motion} No Movement",
-            '❌🔍 no_detection': f"{self.no_detection} No Detection",
-            '🚫🎭 no_detection_on_mask': f"{self.no_detection_on_mask} No Detection on Mask",
-            '⌛ expires': f"{self.expires} Expiry Time",
-            '⚠️ errors': f"{self.errors} Errors",
+            '📥 receives': self.receives,
+            '📤 sends': self.sends,
+            '🔄 message_in_action': self.message_in_action,
+            '🚫🤖 no_motion': self.no_motion,
+            '❌🔍 no_detection': self.no_detection,
+            '🚫🎭 no_detection_on_mask': self.no_detection_on_mask,
+            '⌛ expires': self.expires,
+            '⚠️ errors': self.errors,
             '⏱️ camera_to_detection_times': calculate_time_stats(self.camera_to_detection_times),
-            '📊 detection_rate': f"{calculate_rate(self.sends, total_send_attempts)}% Detection Rate",
-            '⚠️📊 error_rate': f"{calculate_rate(total_errors, total_send_attempts)}% Error Rate",
+            '📊 detection_rate': calculate_rate(self.sends, total_send_attempts),
+            '⚠️📊 error_rate': calculate_rate(total_errors, total_send_attempts),
         }
 
 
