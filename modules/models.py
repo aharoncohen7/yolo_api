@@ -13,8 +13,8 @@ class Coordinates(BaseModel):
 
 
 class Shape(BaseModel):
-    # shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates( x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
-    shape: List[Coordinates] = []
+    shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates(
+        x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
 
 
 class Xyxy(BaseModel):
@@ -40,7 +40,8 @@ class YoloData(BaseModel):
 class CameraData(BaseModel):
     classes: List[int] = [0, 1, 2]
     confidence: float = 0.5
-    masks: Optional[List[Shape]] = [Shape()]
+    # masks: Optional[List[Shape]] = [Shape()]
+    masks: Optional[List[Shape]] = []
     is_focus: bool = True
 
 
@@ -155,8 +156,7 @@ class MetricsTracker:
         total_errors = sum(self.errors.values())
 
         total_run_time_str = format_time(total_run_time)
-        work_run_time_str = format_time(
-            timedelta(seconds=sum(self.processing_times)))
+        work_run_time_str = format_time(timedelta(seconds=sum(self.processing_times)))
 
         return {
             'total_run_time': total_run_time_str,
