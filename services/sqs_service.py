@@ -129,7 +129,7 @@ class SQSService:
             self._metrics['delete_errors'] += 1
             return False
 
-    async def continuous_transfer(self, poll_interval: int = 0):
+    async def continuous_transfer(self, poll_interval: int = 3):
         while True:
             try:
                 messages = await self.get_messages()
