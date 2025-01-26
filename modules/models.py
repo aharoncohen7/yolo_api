@@ -122,6 +122,20 @@ class MetricsTracker:
             if detection:
                 self.sends += 1
 
+    async def process_detection_time(self, camera_start_event_time: str, start_time: datetime, detection_happened: bool = False):
+        camera_event_time = datetime.fromisoformat(
+            str(camera_start_event_time))
+        detection_time_camera_zon = datetime.now(camera_event_time.tzinfo)
+        camera_to_detection_time = (
+            detection_time_camera_zon - camera_event_time).total_seconds()
+
+        await self.add_processing_time(
+            (datetime.now() - start_time).total_seconds(),
+            detection_happened
+        )
+
+        await self.add_camera_detection_time(camera_to_detection_time)
+
     async def add_camera_detection_time(self, time: float):
         async with self._metrics_lock:
             self.camera_to_detection_times.append(time)

@@ -101,19 +101,15 @@ class SQSService:
                 await self.delete_Alert(Alert['ReceiptHandle'])
                 return
 
-            S3urls = Alert_body.snapshots
             camera_data = Alert_body.camera_data
-            frames = await asyncio.gather(*[APIService.fetch_image(url) for url in S3urls], return_exceptions=True)
+            frames = await asyncio.gather(*[APIService.fetch_image(url) for url in Alert_body.snapshots], return_exceptions=True)
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
                 self.logger.warning(f"❌ Expired or invalid image URLs")
                 await self.delete_Alert(Alert['ReceiptHandle'])
                 await metrics_tracker.update('expires')
                 detection_happened = False
-                await metrics_tracker.add_processing_time(
-                    (datetime.now() - start_time).total_seconds(),
-                    detection_happened
-                )
+                await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                 return
 
             mask = MaskService.create_combined_mask(
@@ -124,42 +120,22 @@ class SQSService:
                 await self.delete_Alert(Alert['ReceiptHandle'])
                 await metrics_tracker.update('no_motion')
                 detection_happened = False
-                await metrics_tracker.add_processing_time(
-                    (datetime.now() - start_time).total_seconds(),
-                    detection_happened
-                )
+                await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                 return
 
             yolo_data = YoloData(
-                image=frames,
-                confidence=camera_data.confidence,
-                classes=camera_data.classes
-            )
+                image=frames, confidence=camera_data.confidence, classes=camera_data.classes)
             detection_result = await self.yolo.add_data_to_queue(yolo_data=yolo_data)
             detections = [MaskService.get_detections_on_mask(
                 det, mask, frames[0].shape) for det in detection_result]
 
+            detection_happened = False
             if detections and any(detections):
                 detection = AlertsResponse(
-                    camera_data=Alert_body.without_camera_data(),
-                    detections=detections
-                )
-                camera_event_time = datetime.fromisoformat(
-                    str(detection.camera_data.event_time))
-                detection_time = datetime.now(camera_event_time.tzinfo)
-                camera_to_detection_time = (
-                    detection_time - camera_event_time).total_seconds()
-
-                detection_happened = True
-                await metrics_tracker.add_processing_time(
-                    (detection_time - start_time.astimezone(camera_event_time.tzinfo)
-                     ).total_seconds(),
-                    detection_happened
-                )
-                await metrics_tracker.add_camera_detection_time(camera_to_detection_time)
-
+                    camera_data=Alert_body.without_camera_data(), detections=detections)
                 MaskService.print_results(detections)
                 await self.send_Alert(detection)
+                detection_happened = True
             else:
                 if detection_result and any(detection_result):
                     self.logger.info(f"🕵️‍♂️ Detection outside the mask")
@@ -168,19 +144,14 @@ class SQSService:
                     self.logger.info(f"🚶 Movement but No detection")
                     await metrics_tracker.update('no_detection')
 
-                detection_happened = False
-                await metrics_tracker.add_processing_time(
-                    (datetime.now() - start_time).total_seconds(),
-                    detection_happened
-                )
-
             await self.delete_Alert(Alert['ReceiptHandle'])
+            await metrics_tracker.process_detection_time(Alert_body.event_time, start_time)
 
         except Exception as e:
             await metrics_tracker.update('errors', {'general': 1})
             await metrics_tracker.update('Alert_in_action', -1)
             self.logger.error(f"❌ Error processing Alert: {
-                              Alert.get('AlertId', 'Unknown ID')}", exc_info=True)
+                              Alert.get('MessageId', 'Unknown ID')}", exc_info=True)
 
     async def continuous_transfer(self, poll_interval: int = 0):
         while True:
