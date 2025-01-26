@@ -144,16 +144,26 @@ class MetricsTracker:
         total_run_time = datetime.now() - self.start_time
         total_send_attempts = self.receives
 
-        def format_time(time_delta: timedelta) -> str:
+        def format_time(time_delta: timedelta, ms: bool = False) -> str:
             units = [('Y', 365*24*60*60), ('M', 30*24*60*60), ('D', 24*60*60),
                      ('h', 3600), ('m', 60), ('s', 1)]
-            total_seconds = int(time_delta.total_seconds())
+            if ms:
+                units.append(('ms', 0.001))
+
+            total_seconds = time_delta.total_seconds()
             result = []
-            for unit in units:
-                unit_qty = total_seconds // unit[1]
-                if unit_qty > 0:
-                    result.append(f"{unit_qty}{unit[0]}")
-                    total_seconds -= unit_qty * unit[1]
+
+            for unit, divisor in units:
+                if unit == 'ms' and ms:
+                    ms_value = (total_seconds - int(total_seconds)) * 1000
+                    if ms_value > 0:
+                        result.append(f"{int(ms_value)}{unit}")
+                else:
+                    unit_qty = int(total_seconds // divisor)
+                    if unit_qty > 0 or result:
+                        result.append(f"{unit_qty}{unit}")
+                    total_seconds -= unit_qty * divisor
+
             return ' '.join(result) if result else '0s'
 
         def calculate_time_stats(times: List[float]) -> dict:
@@ -173,19 +183,20 @@ class MetricsTracker:
             timedelta(seconds=sum(self.processing_times)))
 
         return {
-            '🕒 total_run_time': total_run_time_str,
-            '🔧 work_run_time': work_run_time_str,
+            '🕒 total run time': total_run_time_str,
+            '🔧 work run time': work_run_time_str,
             '📥 receives': self.receives,
             '✅ sends': self.sends,
-            '🔄 Alert_in_action': self.Alert_in_action,
-            '🚫🚶 no_movement': self.no_motion,
-            '❌🔍 no_detection': self.no_detection,
-            '🚫🎭 no_detection_on_mask': self.no_detection_on_mask,
+            '🔄 Alert in action': self.Alert_in_action,
+            '🚫🚶 no movement': self.no_motion,
+            '❌🔍 no detection': self.no_detection,
+            '🚫🎭 no detection on mask': self.no_detection_on_mask,
             '⌛ expires': self.expires,
             '⚠️ errors': self.errors,
-            '⏱️ camera_to_detection_times': calculate_time_stats(self.camera_to_detection_times),
-            '📈 detection_rate': calculate_rate(self.sends, total_send_attempts),
-            '📉 error_rate': calculate_rate(total_errors, total_send_attempts),
+            '⚖️ avg detection time': format_time(timedelta(seconds=np.mean(self.processing_times) if self.processing_times else 0), ms=True),
+            '⏱️ camera to detection times': calculate_time_stats(self.camera_to_detection_times),
+            '📈 detection rate': calculate_rate(self.sends, total_send_attempts),
+            '📉 error rate': calculate_rate(total_errors, total_send_attempts),
         }
 
 
