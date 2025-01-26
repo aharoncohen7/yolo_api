@@ -138,7 +138,7 @@ class SQSService:
                 detection_happened = True
             else:
                 if detection_result and any(detection_result):
-                    self.logger.info(f"🕵️‍♂️ Detection outside the mask")
+                    self.logger.info(f"🕵️ Detection outside the mask")
                     await metrics_tracker.update('no_detection_on_mask')
                 else:
                     self.logger.info(f"🚶 Movement but No detection")
