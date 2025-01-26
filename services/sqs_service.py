@@ -115,7 +115,6 @@ class SQSService:
 
             mask = MaskService.create_combined_mask(
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
-            print(mask)
 
             if len(frames) > 1 and isinstance(mask, np.ndarray) and not MaskService.detect_significant_movement(frames, mask):
                 self.logger.info(f"🛑 No significant movement detected")
