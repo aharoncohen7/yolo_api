@@ -69,6 +69,7 @@ class SQSService:
                 MessageBody=json.dumps(detection_data, cls=DetectionEncoder)
             )
             self.logger.info(f"✅ Successfully sent detection data")
+            await metrics_tracker.update('sends')
             return True
         except Exception as e:
             self.logger.error("❌ Failed to send Alert to SQS", exc_info=True)
