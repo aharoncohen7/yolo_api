@@ -13,8 +13,9 @@ class Coordinates(BaseModel):
 
 
 class Shape(BaseModel):
-    shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates(
-        x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
+    shape: List[Coordinates]
+    # shape: List[Coordinates] = [Coordinates(x=0, y=0), Coordinates(
+    #     x=0.5, y=0), Coordinates(x=0.5, y=1), Coordinates(x=0, y=1)]
 
 
 class Xyxy(BaseModel):
@@ -39,8 +40,8 @@ class YoloData(BaseModel):
 
 class CameraData(BaseModel):
     classes: List[int] = [0, 1, 2]
-    confidence: float = 0.5
-    masks: Optional[List[Shape]] = [Shape()]
+    confidence: float = 0.2
+    masks: Optional[List[Shape]] = []
     is_focus: bool = True
 
 
