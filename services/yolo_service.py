@@ -55,7 +55,7 @@ class YoloService:
         """Runs the YOLO model with given data."""
         with torch.no_grad():
             self.model.conf = yolo_data.confidence
-            self.model.iou = 0.5
+            # self.model.iou = 0.5
             self.model.classes = yolo_data.classes
             return self.model(yolo_data.image)
 

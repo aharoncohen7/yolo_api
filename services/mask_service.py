@@ -324,7 +324,8 @@ class MaskService:
         mask: np.ndarray = None,
         sensitivity: float = 1.0,
         min_area: int = 100,
-        box_padding: int = 5
+        box_padding: int = 5,
+        mash_with_movement: bool = True
     ) -> Tuple[bool, np.ndarray, np.ndarray]:
         """
         Detect significant motion in frames and return motion status and masks.
@@ -366,10 +367,12 @@ class MaskService:
         binary_mask = MaskService._create_bbox_masks(
             valid_contours, frames[0].shape, box_padding
         )
-        
+
         # cv2.imwrite('test.jpg', test_color_mask)
-        if isinstance(mask, np.ndarray):
+        if mash_with_movement and isinstance(mask, np.ndarray):
             binary_mask = cv2.bitwise_and(mask, binary_mask)
+        else:
+            binary_mask = mask
 
         return bool(valid_contours), binary_mask
 

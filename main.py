@@ -264,16 +264,15 @@ import os
 import uvicorn
 import asyncio
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 # from fastapi import FastAPI, HTTPException, Query
-# from modules.models import ARequest, AResponse, AlertsRequest, AlertsResponse, YoloData
+
 from services import YoloService, SQSService, load_AWS_env
+
+# from modules.models import ARequest, AResponse, AlertsRequest, AlertsResponse, YoloData
 from modules import metrics_tracker
-# from services.api_service import APIService
-# from services.mask_service import MaskService
 
 load_AWS_env(secret_name='ILG-YOLO-SQS')
-
-app = FastAPI(title="YOLO Detection Service")
 
 yolo_service = YoloService()
 
@@ -288,12 +287,17 @@ SqsService = SQSService(
     yolo_service=yolo_service,
 )
 
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await yolo_service.initialize()
-    asyncio.create_task(SqsService.continuous_transfer())
+    task = asyncio.create_task(SqsService.continuous_transfer())
+    
+    try:
+        yield
+    finally:
+        task.cancel()
 
+app = FastAPI(title="YOLO Detection Service", lifespan=lifespan)
 
 @app.get("/health")
 async def get_metric():
