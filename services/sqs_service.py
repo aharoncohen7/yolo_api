@@ -120,7 +120,7 @@ class SQSService:
             if len(frames) > 1 and isinstance(mask, np.ndarray):
                 test_mask_time = datetime.now()
                 is_def, mask = MaskService.detect_significant_movement(
-                    frames, mask, mash_with_movement=False)
+                    frames, mask)
                 await metrics_tracker.add_detect_motion_time(
                     (datetime.now() - test_mask_time).total_seconds())
                 if not is_def:
