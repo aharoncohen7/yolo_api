@@ -40,9 +40,9 @@ class YoloService:
             if not self.initialized:
                 print("Loading YOLO model...")
                 try:
-                    # self.model = torch.hub.load(
-                    #     'ultralytics/yolov5', 'yolov5s')
-                    self.model = YOLO("yolov8s.pt")
+                    self.model = torch.hub.load(
+                        'ultralytics/yolov5', 'yolov5s')
+                    # self.model = YOLO("yolov8s.pt")
                     self.model.to(self.device)
                     self.model.eval()
                     self.Q = asyncio.Queue()
@@ -57,15 +57,15 @@ class YoloService:
 
     def _run_model(self, yolo_data: YoloData):
         """Runs the YOLO model with given data."""
-        with torch.no_grad():
-            results = self.model.predict(
-                yolo_data.image, conf=yolo_data.confidence, classes=yolo_data.classes, iou=0.6)
-        return results
-        # self.model.conf = yolo_data.confidence
-        # self.model.iou = 0.6
-        # self.model.agnostic_nms = True
-        # self.model.classes = yolo_data.classes
-        # return self.model(yolo_data.image)
+        # with torch.no_grad():
+        #     results = self.model.predict(
+        #         yolo_data.image, conf=yolo_data.confidence, classes=yolo_data.classes, iou=0.6)
+        # return results
+        self.model.conf = yolo_data.confidence
+        self.model.iou = 0.6
+        self.model.agnostic_nms = True
+        self.model.classes = yolo_data.classes
+        return self.model(yolo_data.image)
 
     async def add_data_to_queue(self, yolo_data: YoloData) -> Optional[List[Detection] | List[List[Detection]]]:
         """Adds an image to the processing queue."""
@@ -140,36 +140,14 @@ class YoloService:
             traceback.print_exc()
             raise
 
-    # def _extract_detections(self, predictions, shape: tuple[int]) -> List[Detection] | List:
-    #     """Applies post-processing on predictions to generate detections."""
-    #     detections = []
-    #     img_y, img_x = shape[:2]
-
-    #     for det in predictions:
-    #         try:
-    #             x1, y1, x2, y2, confidence, class_id = det[:6].tolist()
-
-    #             detections.append(Detection(
-    #                 bbox=Xyxy(x1=x1/img_x, y1=y1/img_y,
-    #                           x2=x2/img_x, y2=y2/img_y),
-    #                 confidence=f"{confidence:.2f}",
-    #                 class_id=class_id,
-    #                 class_name=self.model.names[class_id])
-    #             )
-    #         except Exception as e:
-    #             print(f"Error processing detection: {str(e)}")
-
-    #     return detections
     def _extract_detections(self, predictions, shape: tuple[int]) -> List[Detection] | List:
         """Applies post-processing on predictions to generate detections."""
         detections = []
         img_y, img_x = shape[:2]
 
-        for result in predictions:
-            for box in result.boxes:
-                x1, y1, x2, y2 = box.xyxy[0].tolist()
-                confidence = box.conf[0].item()
-                class_id = int(box.cls[0].item())
+        for det in predictions:
+            try:
+                x1, y1, x2, y2, confidence, class_id = det[:6].tolist()
 
                 detections.append(Detection(
                     bbox=Xyxy(x1=x1/img_x, y1=y1/img_y,
@@ -178,4 +156,7 @@ class YoloService:
                     class_id=class_id,
                     class_name=self.model.names[class_id])
                 )
+            except Exception as e:
+                print(f"Error processing detection: {str(e)}")
+
         return detections

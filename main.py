@@ -287,17 +287,19 @@ SqsService = SQSService(
     yolo_service=yolo_service,
 )
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await yolo_service.initialize()
     task = asyncio.create_task(SqsService.continuous_transfer())
-    
+
     try:
         yield
     finally:
         task.cancel()
 
 app = FastAPI(title="YOLO Detection Service", lifespan=lifespan)
+
 
 @app.get("/health")
 async def get_metric():
@@ -309,6 +311,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        workers=1,
+        workers=4,
         # reload=True
     )

@@ -369,8 +369,9 @@ class MaskService:
         )
 
         # cv2.imwrite('test.jpg', test_color_mask)
-        if mash_with_movement and isinstance(mask, np.ndarray):
-            binary_mask = cv2.bitwise_and(mask, binary_mask)
+        if mash_with_movement:
+            if isinstance(mask, np.ndarray):
+                binary_mask = cv2.bitwise_and(mask, binary_mask)
         else:
             binary_mask = mask
 
