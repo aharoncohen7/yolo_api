@@ -98,6 +98,7 @@ class MetricsTracker:
     receives: int = 0
     sends: int = 0
     Alert_in_action: int = 0
+    motion_mask_time: List[float] = field(default_factory=list)
     no_motion: int = 0
     no_detection: int = 0
     no_detection_on_mask: int = 0
@@ -115,7 +116,19 @@ class MetricsTracker:
         async with self._metrics_lock:
             if hasattr(self, metric_type):
                 current_value = getattr(self, metric_type)
-                setattr(self, metric_type, current_value + value)
+
+                if isinstance(current_value, dict):
+                    for key, val in value.items():
+                        if key in current_value:
+                            current_value[key] += val
+                        else:
+                            current_value[key] = val
+                else:
+                    setattr(self, metric_type, current_value + value)
+
+    async def add_detect_motion_time(self, time: float):
+        async with self._metrics_lock:
+            self.motion_mask_time.append(time)
 
     async def add_processing_time(self, time: float, detection: bool = False):
         async with self._metrics_lock:
@@ -194,6 +207,7 @@ class MetricsTracker:
             '🚫🎭 no detection on mask': self.no_detection_on_mask,
             '⌛ expires': self.expires,
             '⚠️ errors': self.errors,
+            '🚶🎭 detect motion mask time': format_time(timedelta(seconds=np.mean(self.motion_mask_time) if self.motion_mask_time else 0), ms=True),
             '⚖️ avg detection time': format_time(timedelta(seconds=np.mean(self.processing_times) if self.processing_times else 0), ms=True),
             '⏱️ camera to detection times': calculate_time_stats(self.camera_to_detection_times),
             '📈 detection rate': calculate_rate(self.sends, total_send_attempts),
