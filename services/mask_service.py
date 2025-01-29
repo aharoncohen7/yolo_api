@@ -229,7 +229,7 @@ class MaskService:
         if not all(frame.shape == frame_shape for frame in frames):
             raise ValueError("All frames must have the same shape")
 
-        if mask is not None and mask.shape[:2] != frame_shape[:2]:
+        if isinstance(mask, np.ndarray) and mask.shape[:2] != frame_shape[:2]:
             raise ValueError("Mask shape must match frame shape")
 
     def _create_motion_accumulator(frames: List[np.ndarray], sensitivity: float) -> np.ndarray:
@@ -277,7 +277,7 @@ class MaskService:
         if cv2.contourArea(contour) < min_area:
             return False
 
-        if mask is not None:
+        if isinstance(mask, np.ndarray):
             M = cv2.moments(contour)
             if M["m00"] == 0:
                 return False
@@ -363,11 +363,15 @@ class MaskService:
         ]
 
         # Create masks from valid contours
-        binary_mask, color_mask = MaskService._create_bbox_masks(
-            valid_contours, frames[0].shape, box_padding, True
+        binary_mask = MaskService._create_bbox_masks(
+            valid_contours, frames[0].shape, box_padding
         )
+        
+        # cv2.imwrite('test.jpg', test_color_mask)
+        if isinstance(mask, np.ndarray):
+            binary_mask = cv2.bitwise_and(mask, binary_mask)
 
-        return bool(valid_contours), cv2.bitwise_and(mask, binary_mask)
+        return bool(valid_contours), binary_mask
 
     @staticmethod
     def print_results(detections: List[Detection] | List[List[Detection]], shape: tuple[int] = (10, 16, 16, 40)):

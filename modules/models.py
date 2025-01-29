@@ -62,6 +62,11 @@ class Request(BaseModel):
     time_detect: datetime
 
 
+# class ARequest(BaseModel):
+#     urls: List[str]
+#     camera_data: CameraData = CameraData()
+
+
 class AlertsRequest(BaseModel):
     ip: str
     nvr_name: str
@@ -81,6 +86,12 @@ class AlertsRequest(BaseModel):
 class AlertsResponse(BaseModel):
     camera_data: Request
     detections: List[List[Detection]] | List
+
+
+# class AResponse(BaseModel):
+#     urls: List[str]
+#     camera_data: CameraData
+#     detections: List[List[Detection]] | List
 
 
 class DetectionEncoder(json.JSONEncoder):

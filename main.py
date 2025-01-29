@@ -204,8 +204,8 @@
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/yolo-detect", response_model=Optional[Union[AlertsResponse, Dict[str, str]]])
-# async def generic_detection(request: Optional[AlertsRequest | AlertRequest], motion: Optional[bool] = Query("true")):
+# @app.post("/yolo-detect", response_model=Optional[Union[AResponse, Dict[str, str]]])
+# async def generic_detection(request: Optional[ARequest], motion: Optional[bool] = Query("true")):
 #     """
 #     Detect objects in images using YOLO, with optional motion detection.
 
@@ -240,9 +240,9 @@
 
 #         # Handle motion detection if needed
 #         if len(frames) > 1 and bool(motion):
-#             if not MaskService.detect_significant_movement(frames, mask):
+#             T, mask = MaskService.detect_significant_movement(frames, mask)
+#             if not T:
 #                 return {"message": "No significant movement detected. Use '/yolo-detect?motion=false' for batch detection."}
-
 #         # Prepare YOLO data
 #         yolo_data = YoloData(
 #             image=frames, classes=camera_data.classes, confidence=camera_data.confidence)
@@ -253,18 +253,23 @@
 #             det, mask, frames[0].shape) for det in detections]
 
 #         # Return the detection results
-#         return AlertsResponse(urls=urls, camera_data=camera_data, detections=detections)
+#         return AResponse(urls=urls, camera_data=camera_data, detections=detections)
 
 #     except Exception as e:
 #         print(f"Error processing alert: {str(e)}")
 #         raise HTTPException(status_code=500, detail=str(e))
 
 import os
+# from typing import Dict, Optional, Union
 import uvicorn
 import asyncio
 from fastapi import FastAPI
+# from fastapi import FastAPI, HTTPException, Query
+# from modules.models import ARequest, AResponse, AlertsRequest, AlertsResponse, YoloData
 from services import YoloService, SQSService, load_AWS_env
 from modules import metrics_tracker
+# from services.api_service import APIService
+# from services.mask_service import MaskService
 
 load_AWS_env(secret_name='ILG-YOLO-SQS')
 
@@ -300,5 +305,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        workers=1
+        workers=1,
+        # reload=True
     )
