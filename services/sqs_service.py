@@ -2,6 +2,7 @@ import json
 import logging
 import asyncio
 import aioboto3
+import cv2
 import numpy as np
 from datetime import datetime
 from typing import List, Dict
@@ -115,18 +116,29 @@ class SQSService:
 
             mask = MaskService.create_combined_mask(
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
-
-            if len(frames) > 1 and isinstance(mask, np.ndarray) and not MaskService.detect_significant_movement(frames, mask):
-                self.logger.info(f"🛑 No significant movement detected")
-                await self.delete_Alert(Alert['ReceiptHandle'])
-                await metrics_tracker.update('no_motion')
-                detection_happened = False
-                await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
-                return
+            # motion_mask = []
+            if len(frames) > 1 and isinstance(mask, np.ndarray):
+                test_mask_time = datetime.now()
+                is_def, mask = MaskService.detect_significant_movement(
+                    frames, mask)
+                await metrics_tracker.add_detect_motion_time(
+                    (datetime.now() - test_mask_time).total_seconds())
+                if not is_def:
+                    self.logger.info(f"🛑 No significant movement detected")
+                    await self.delete_Alert(Alert['ReceiptHandle'])
+                    await metrics_tracker.update('no_motion')
+                    detection_happened = False
+                    await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
+                    return
+                # cv2.imshow("Motion Mask", color_mask)
+                # if cv2.waitKey(100) & 0xFF == ord('q'):
+                #     cv2.destroyAllWindows()
 
             yolo_data = YoloData(
                 image=frames, confidence=camera_data.confidence, classes=camera_data.classes)
             detection_result = await self.yolo.add_data_to_queue(yolo_data=yolo_data)
+            # detections_mask = [MaskService.get_detections_on_mask(
+            #     det, mask, frames[0].shape) for det in detection_result]
             detections = [MaskService.get_detections_on_mask(
                 det, mask, frames[0].shape) for det in detection_result]
 
