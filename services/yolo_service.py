@@ -133,7 +133,7 @@ class YoloService:
         try:
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(self._executor, self._run_model, YoloData(image=image, confidence=confidence, classes=classes))
-            detections = await loop.run_in_executor(self._executor, self._extract_detections, results, image.shape)
+            detections = await loop.run_in_executor(self._executor, self._extract_detections, results.xyxy[0], image.shape)
             return detections
         except Exception as e:
             print(f"Error in YOLO detection: {str(e)}")
