@@ -1,3 +1,5 @@
+import logging
+from ultralytics import YOLO
 import torch
 import asyncio
 import traceback
@@ -8,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from modules import Detection, YoloData, Xyxy
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+logging.getLogger('ultralytics').setLevel(logging.ERROR)
 
 
 class YoloService:
@@ -39,6 +42,7 @@ class YoloService:
                 try:
                     self.model = torch.hub.load(
                         'ultralytics/yolov5', 'yolov5s')
+                    # self.model = YOLO("yolov8s.pt")
                     self.model.to(self.device)
                     self.model.eval()
                     self.Q = asyncio.Queue()
@@ -53,11 +57,15 @@ class YoloService:
 
     def _run_model(self, yolo_data: YoloData):
         """Runs the YOLO model with given data."""
-        with torch.no_grad():
-            self.model.conf = yolo_data.confidence
-            self.model.iou = 0.5
-            self.model.classes = yolo_data.classes
-            return self.model(yolo_data.image)
+        # with torch.no_grad():
+        #     results = self.model.predict(
+        #         yolo_data.image, conf=yolo_data.confidence, classes=yolo_data.classes, iou=0.6)
+        # return results
+        self.model.conf = yolo_data.confidence
+        self.model.iou = 0.6
+        self.model.agnostic_nms = True
+        self.model.classes = yolo_data.classes
+        return self.model(yolo_data.image)
 
     async def add_data_to_queue(self, yolo_data: YoloData) -> Optional[List[Detection] | List[List[Detection]]]:
         """Adds an image to the processing queue."""

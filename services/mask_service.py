@@ -229,7 +229,7 @@ class MaskService:
         if not all(frame.shape == frame_shape for frame in frames):
             raise ValueError("All frames must have the same shape")
 
-        if mask is not None and mask.shape[:2] != frame_shape[:2]:
+        if isinstance(mask, np.ndarray) and mask.shape[:2] != frame_shape[:2]:
             raise ValueError("Mask shape must match frame shape")
 
     # def _create_motion_accumulator(frames: List[np.ndarray], sensitivity: float) -> np.ndarray:
@@ -318,56 +318,65 @@ class MaskService:
 
         return (binary_mask, color_mask) if ret_color else binary_mask
 
-    @staticmethod
-    def detect_significant_movement(
-        frames: List[np.ndarray],
-        mask: np.ndarray = None,
-        sensitivity: float = 0.0,
-        min_area: int = 2000,
-        box_padding: int = 2
-    ) -> Tuple[bool, np.ndarray, np.ndarray]:
-        """
-        Detect significant motion in frames and return motion status and masks.
+#     @staticmethod
+#     def detect_significant_movement(
+#         frames: List[np.ndarray],
+#         mask: np.ndarray = None,
 
-        Args:
-            frames: List of input frames (at least 2)
-            mask: Optional binary mask to limit detection area
-            sensitivity: Motion detection sensitivity (0.0 to 1.0)
-            min_area: Minimum area to consider as significant motion
-            box_padding: Padding to add around detected motion boxes
+#         sensitivity: float = 1.0,
+#         min_area: int = 100,
+#         box_padding: int = 5,
+#         mash_with_movement: bool = True
+#     ) -> Tuple[bool, np.ndarray, np.ndarray]:
+#         """
+#         Detect significant motion in frames and return motion status and masks.
 
-        Returns:
-            Tuple of (has_motion, binary_mask, color_mask) where:
-            - has_motion: Boolean indicating if motion was detected
-            - binary_mask: NumPy array with 0s and 1s
-            - color_mask: NumPy array with black (0,0,0) and green (0,255,0)
-        """
-        # Validate inputs
-        MaskService._validate_inputs(frames, mask)
+#         Args:
+#             frames: List of input frames (at least 2)
+#             mask: Optional binary mask to limit detection area
+#             sensitivity: Motion detection sensitivity (0.0 to 1.0)
+#             min_area: Minimum area to consider as significant motion
+#             box_padding: Padding to add around detected motion boxes
 
-        # Create motion accumulator
-        motion_mask = MaskService._create_motion_accumulator(
-            frames, sensitivity)
+#         Returns:
+#             Tuple of (has_motion, binary_mask, color_mask) where:
+#             - has_motion: Boolean indicating if motion was detected
+#             - binary_mask: NumPy array with 0s and 1s
+#             - color_mask: NumPy array with black (0,0,0) and green (0,255,0)
+#         """
+#         # Validate inputs
+#         MaskService._validate_inputs(frames, mask)
 
-        # Find contours
-        contours, _ = cv2.findContours(
-            motion_mask,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )
+#         # Create motion accumulator
+#         motion_mask = MaskService._create_motion_accumulator(
+#             frames, sensitivity)
 
-        # Filter valid contours
-        valid_contours = [
-            contour for contour in contours
-            if MaskService._is_valid_contour(contour, mask, min_area)
-        ]
+#         # Find contours
+#         contours, _ = cv2.findContours(
+#             motion_mask,
+#             cv2.RETR_EXTERNAL,
+#             cv2.CHAIN_APPROX_SIMPLE
+#         )
 
-        # Create masks from valid contours
-        binary_mask, color_mask = MaskService._create_bbox_masks(
-            valid_contours, frames[0].shape, box_padding, True
-        )
+#         # Filter valid contours
+#         valid_contours = [
+#             contour for contour in contours
+#             if MaskService._is_valid_contour(contour, mask, min_area)
+#         ]
 
-        return bool(valid_contours), cv2.bitwise_and(mask, binary_mask)
+#         # Create masks from valid contours
+#         binary_mask = MaskService._create_bbox_masks(
+#             valid_contours, frames[0].shape, box_padding
+#         )
+
+#         # cv2.imwrite('test.jpg', test_color_mask)
+#         if mash_with_movement:
+#             if isinstance(mask, np.ndarray):
+#                 binary_mask = cv2.bitwise_and(mask, binary_mask)
+#         else:
+#             binary_mask = mask
+
+#         return bool(valid_contours), binary_mask
 
     def _create_motion_accumulator(
         frames: List[np.ndarray],
