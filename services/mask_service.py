@@ -451,10 +451,11 @@ class MaskService:
         mask: np.ndarray = None,
         sensitivity: float = 0.5,
         min_area: int = 25,
-        box_padding: int = 25,
-        noise_threshold: int = 45,
-        blur_strength: float = 4.0,
-        temporal_smoothing: float = 1.0
+        box_padding: int = 15,
+        noise_threshold: int = 15,
+        blur_strength: float = 2.0,
+        temporal_smoothing: float = 0.7,
+        mask_with_movement: bool = False
     ) -> Tuple[bool, np.ndarray, np.ndarray]:
         """
         זיהוי תנועה משמעותית בפריימים עם פרמטרים נוספים לשליטה.
@@ -495,6 +496,13 @@ class MaskService:
         binary_mask = MaskService._create_bbox_masks(
             valid_contours, frames[0].shape, box_padding
         )
+
+        # cv2.imwrite('test.jpg', test_color_mask)
+        if mask_with_movement:
+            if isinstance(mask, np.ndarray):
+                binary_mask = cv2.bitwise_and(mask, binary_mask)
+        else:
+            binary_mask = mask
 
         return bool(valid_contours), binary_mask
 
