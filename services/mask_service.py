@@ -45,7 +45,9 @@ class MaskService:
     def get_detections_on_mask(
         detections: List[Detection],
         mask: np.ndarray,
-        shape: List[int]
+        shape: List[int],
+        min_x: int = 15,
+        min_y: int = 15
     ) -> List[Detection]:
         """
         Filters detections based on whether their center is inside the provided mask.
@@ -54,6 +56,8 @@ class MaskService:
             detections: List of detection objects (bounding boxes).
             mask: Binary mask to check against.
             shape: Shape of the image (height, width).
+            min_x: min width of the bbox detection area to consider, default = 15
+            min_y: min hight of the bbox detection area to consider, default = 15
 
         Returns:
             List of detections whose center is inside the mask.
@@ -72,7 +76,7 @@ class MaskService:
                     # if not (i + j) % 2 == 0
                 ]
 
-                if any(0 <= x < mask.shape[1] and 0 <= y < mask.shape[0] and mask[int(y), int(x)] > 0 for x, y in points):
+                if any(0 <= x < mask.shape[1] and 0 <= y < mask.shape[0] and mask[int(y), int(x)] > 0 for x, y in points) and (x2-x1 > min_x) and (y2-y1 > min_y):
                     ret_detections.append(detect)
 
             return ret_detections
