@@ -107,6 +107,11 @@ class SQSService:
 
             camera_data = Alert_body.camera_data
             frames = await asyncio.gather(*[self.S3Service.fetch_image(key=url) for url in Alert_body.snapshots], return_exceptions=True)
+            for frame in frames:
+                cv2.imshow("Slideshow", frame)
+                cv2.waitKey(500)
+
+            cv2.destroyAllWindows() 
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
                 self.logger.warning(f"❌ Expired or invalid image URLs")
@@ -131,8 +136,6 @@ class SQSService:
                     detection_happened = False
                     await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                     return
-
-                # cv2.imshow("Motion Mask", color_mask)
 
             yolo_data = YoloData(
                 image=frames, confidence=camera_data.confidence, classes=camera_data.classes)
