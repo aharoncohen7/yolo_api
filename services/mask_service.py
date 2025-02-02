@@ -46,7 +46,7 @@ class MaskService:
         detections: List[Detection],
         mask: np.ndarray,
         shape: List[int],
-        min_x: int = 15,
+        min_x: int = 10,
         min_y: int = 15
     ) -> List[Detection]:
         """

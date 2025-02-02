@@ -140,7 +140,7 @@ class SQSService:
             # detections_mask = [MaskService.get_detections_on_mask(
             #     det, mask, frames[0].shape) for det in detection_result]
             detections = [MaskService.get_detections_on_mask(
-                det, mask, frames[0].shape, min_y=25) for det in detection_result]
+                det, mask, frames[0].shape, min_y=15) for det in detection_result]
 
             detection_happened = False
             if detections and any(detections):
