@@ -131,8 +131,6 @@ class SQSService:
                     await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                     return
                 # cv2.imshow("Motion Mask", color_mask)
-                # if cv2.waitKey(100) & 0xFF == ord('q'):
-                #     cv2.destroyAllWindows()
 
             yolo_data = YoloData(
                 image=frames, confidence=camera_data.confidence, classes=camera_data.classes)
