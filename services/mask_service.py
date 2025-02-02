@@ -47,7 +47,7 @@ class MaskService:
         detections: List[Detection],
         mask: np.ndarray,
         shape: List[int],
-        min_x: int = 10,
+        min_x: int = 15,
         min_y: int = 15
     ) -> List[Detection]:
         """
@@ -233,9 +233,9 @@ class MaskService:
         frames: List[np.ndarray],
         mask: np.ndarray = None,
         sensitivity: float = 0.5,
-        min_area: int = 350,
+        min_area: int = 550,
         box_padding: int = 3,
-        noise_threshold: int = 15,
+        noise_threshold: int = 35,
         blur_strength: float = 2.0,
         temporal_smoothing: float = 0.7,
         mask_with_movement: bool = False
