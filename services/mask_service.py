@@ -232,7 +232,7 @@ class MaskService:
         frames: List[np.ndarray],
         mask: np.ndarray = None,
         sensitivity: float = 0.5,
-        min_area: int = 25,
+        min_area: int = 15,
         box_padding: int = 3,
         noise_threshold: int = 15,
         blur_strength: float = 2.0,
