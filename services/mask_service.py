@@ -159,7 +159,7 @@ class MaskService:
             if ret_color:
                 cv2.rectangle(color_mask, (x1, y1), (x2, y2), (0, 255, 0), -1)
 
-        return (binary_mask, color_mask) if ret_color else binary_mask
+        return binary_mask, color_mask if ret_color else binary_mask
 
     def _create_motion_accumulator(
         frames: List[np.ndarray],

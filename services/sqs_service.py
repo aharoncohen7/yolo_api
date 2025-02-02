@@ -131,9 +131,7 @@ class SQSService:
                     detection_happened = False
                     await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                     return
-                mask_key = f'{Alert_body.snapshots[0][:-2]}_4'
-                await self.S3Service.upload_image(key=mask_key, image=color_mask)
-                Alert_body.snapshots.append(mask_key)
+
                 # cv2.imshow("Motion Mask", color_mask)
 
             yolo_data = YoloData(
@@ -150,6 +148,9 @@ class SQSService:
                     camera_data=Alert_body.without_camera_data(), detections=detections)
                 MaskService.print_results(detections)
                 await self.send_Alert(detection)
+                # mask_key = f'{Alert_body.snapshots[0][:-6]}_4'
+                # await self.S3Service.upload_image(key=mask_key, image=color_mask)
+                # Alert_body.snapshots.append(mask_key)
                 detection_happened = True
             else:
                 if detection_result and any(detection_result):

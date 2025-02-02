@@ -280,12 +280,13 @@ queue_for_backend_url = os.getenv('queue_for_backend_url')
 bucket_name = os.getenv('bucket_name')
 images_folder = os.getenv('images_folder')
 region = os.getenv('region')
-S3Service = S3Service(Bucket=bucket_name, Folder=images_folder, region=region)
+s3Service = S3Service(Bucket=bucket_name, Folder=images_folder, region=region)
 
 SqsService = SQSService(
     region=region,
     data_for_queue_url=queue_for_yolo_url,
     backend_queue_url=queue_for_backend_url,
+    S3Service=s3Service,
     yolo_service=yolo_service,
 )
 

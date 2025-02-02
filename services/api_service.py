@@ -79,6 +79,7 @@ class S3Service:
             _, encoded_image = cv2.imencode('.jpg', image)
             image_data = encoded_image.tobytes()
             await S3.put_object(Bucket=self.bucket_name, Key=f'{self.images_folder}/{key}', Body=image_data, ContentType='image/jpeg')
+            print("uploaded", key)
             return True
 
         except aioboto3.exceptions.S3UploadFailedError as e:
