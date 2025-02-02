@@ -293,7 +293,3 @@ sudo systemctl status yolo_api.service
 ```bash
 sudo journalctl -u yolo_api.service -f
 ```
-
-```
-
-```
