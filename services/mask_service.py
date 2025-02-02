@@ -1,3 +1,4 @@
+from collections import defaultdict
 import cv2
 import shutil
 import numpy as np
@@ -310,18 +311,22 @@ class MaskService:
 
         headers = f"{
             ' ' * B}| {'Class Name':^{F}}|{'Confidence':^{S}}|{'bbox':^{L}}|"
-        divider = f"{' ' * B}|-{'-' * F}|{'-' * S}|{'-' * L}|"
+        divider = f"{' ' * B}•-{'-' * F}•{'-' * S}•{'-' * L}•"
 
         print("\n\n" + divider)
         print(headers)
         print(divider)
+        object_detected = defaultdict(lambda: "❓", {
+            "car": "🚗",
+            "person": "🚶"
+        })
 
         for i, image_detections in enumerate(detections, 1):
             print(f"{' ' * B}| {f'image {i}':<{F}}|{' ' * S}|{' ' * L}|")
 
             for j, det in enumerate(image_detections, 1):
-                print(f"{' ' * B}| {f'   {j}. {det.class_name}':<{F}}|{
-                      f'{det.confidence}':^{S}}|{f'{det.bbox}':^{L}}|")
+                print(f"{' ' * B}| {f'   {j}. {object_detected[det.class_name]} {
+                      det.class_name}':<{F-1}}|{f'{det.confidence}':^{S}}|{f'{det.bbox}':^{L}}|")
 
             print(divider)
 
