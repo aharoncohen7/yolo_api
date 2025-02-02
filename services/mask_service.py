@@ -232,11 +232,11 @@ class MaskService:
     def detect_significant_movement(
         frames: List[np.ndarray],
         mask: np.ndarray = None,
-        sensitivity: float = 0.5,
+        sensitivity: float = 0.7,
         min_area: int = 550,
         box_padding: int = 3,
-        noise_threshold: int = 35,
-        blur_strength: float = 2.0,
+        noise_threshold: int = 45,
+        blur_strength: float = 3.0,
         temporal_smoothing: float = 0.7,
         mask_with_movement: bool = False
     ) -> Tuple[bool, np.ndarray, np.ndarray]:
