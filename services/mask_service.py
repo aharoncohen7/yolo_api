@@ -159,7 +159,7 @@ class MaskService:
             if ret_color:
                 cv2.rectangle(color_mask, (x1, y1), (x2, y2), (0, 255, 0), -1)
 
-        return (binary_mask, color_mask) if ret_color else binary_mask
+        return binary_mask, color_mask if ret_color else binary_mask
 
     def _create_motion_accumulator(
         frames: List[np.ndarray],
@@ -276,18 +276,18 @@ class MaskService:
             if MaskService._is_valid_contour(contour, mask, min_area)
         ]
 
-        binary_mask = MaskService._create_bbox_masks(
-            valid_contours, frames[0].shape, box_padding
+        binary_mask, color_mask = MaskService._create_bbox_masks(
+            valid_contours, frames[0].shape, box_padding, ret_color=True
         )
 
-        # cv2.imwrite('test.jpg', test_color_mask)
+        # cv2.imwrite('test.jpg', color_mask)
         if mask_with_movement:
             if isinstance(mask, np.ndarray):
                 binary_mask = cv2.bitwise_and(mask, binary_mask)
         else:
             binary_mask = mask
 
-        return bool(valid_contours), binary_mask
+        return bool(valid_contours), binary_mask, color_mask
 
     @staticmethod
     def print_results(detections: List[Detection] | List[List[Detection]], shape: tuple[int] = (10, 16, 16, 40)):

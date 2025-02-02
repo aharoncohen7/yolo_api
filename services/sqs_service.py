@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict
 from pydantic import ValidationError
 
-from services import YoloService, MaskService, APIService
+from services import YoloService, MaskService, S3Service
 from modules import AlertsRequest, AlertsResponse, DetectionEncoder, YoloData, metrics_tracker
 
 
@@ -19,6 +19,7 @@ class SQSService:
         data_for_queue_url: str,
         backend_queue_url: str,
         yolo_service: YoloService,
+        S3Service: S3Service,
         batch_size: int = 20,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -30,6 +31,7 @@ class SQSService:
         self.data_for_queue_url = data_for_queue_url
         self.backend_queue_url = backend_queue_url
         self.yolo = yolo_service
+        self.S3Service = S3Service
         self.batch_size = batch_size
 
     async def get_sqs_client(self):
@@ -104,7 +106,7 @@ class SQSService:
                 return
 
             camera_data = Alert_body.camera_data
-            frames = await asyncio.gather(*[APIService.fetch_image(url) for url in Alert_body.snapshots], return_exceptions=True)
+            frames = await asyncio.gather(*[self.S3Service.fetch_image(key=url) for url in Alert_body.snapshots], return_exceptions=True)
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
                 self.logger.warning(f"❌ Expired or invalid image URLs")
@@ -116,10 +118,9 @@ class SQSService:
 
             mask = MaskService.create_combined_mask(
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
-            # motion_mask = []
             if len(frames) > 1 and isinstance(mask, np.ndarray):
                 test_mask_time = datetime.now()
-                is_def, mask = MaskService.detect_significant_movement(
+                is_def, mask, color_mask = MaskService.detect_significant_movement(
                     frames, mask, mask_with_movement=True)
                 await metrics_tracker.add_detect_motion_time(
                     (datetime.now() - test_mask_time).total_seconds())
@@ -130,6 +131,7 @@ class SQSService:
                     detection_happened = False
                     await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                     return
+
                 # cv2.imshow("Motion Mask", color_mask)
 
             yolo_data = YoloData(
@@ -146,6 +148,9 @@ class SQSService:
                     camera_data=Alert_body.without_camera_data(), detections=detections)
                 MaskService.print_results(detections)
                 await self.send_Alert(detection)
+                # mask_key = f'{Alert_body.snapshots[0][:-6]}_4'
+                # await self.S3Service.upload_image(key=mask_key, image=color_mask)
+                # Alert_body.snapshots.append(mask_key)
                 detection_happened = True
             else:
                 if detection_result and any(detection_result):

@@ -14,7 +14,7 @@
 
 #     try:
 #         # Fetch image from URL
-#         image: np.ndarray = await APIService.fetch_image(url)
+#         image: np.ndarray = await S3Service.fetch_image(url)
 
 #         # Prepare YOLO data for detection
 #         yolo_data: YoloData = YoloData(
@@ -49,7 +49,7 @@
 
 #     try:
 #         # Fetch image from URL
-#         image: np.ndarray = await APIService.fetch_image(url)
+#         image: np.ndarray = await S3Service.fetch_image(url)
 
 #         # Prepare YOLO data for detection
 #         yolo_data: YoloData = YoloData(
@@ -90,7 +90,7 @@
 
 #     try:
 #         # Fetch images from URLs
-#         frames = [await APIService.fetch_image(url) for url in urls]
+#         frames = [await S3Service.fetch_image(url) for url in urls]
 
 #         # Prepare YOLO data for detection
 #         yolo_data = YoloData(
@@ -129,7 +129,7 @@
 
 #     try:
 #         # Fetch images from URLs
-#         frames = [await APIService.fetch_image(url) for url in urls]
+#         frames = [await S3Service.fetch_image(url) for url in urls]
 
 #         # Prepare YOLO data for detection
 #         yolo_data = YoloData(
@@ -171,7 +171,7 @@
 
 #     try:
 #         # Fetch images from URLs
-#         frames = [await APIService.fetch_image(url) for url in urls]
+#         frames = [await S3Service.fetch_image(url) for url in urls]
 
 #         # Generate mask
 #         mask = MaskService.create_combined_mask(
@@ -229,7 +229,7 @@
 
 #     try:
 #         # Fetch images
-#         frames = [await APIService.fetch_image(url) for url in urls]
+#         frames = [await S3Service.fetch_image(url) for url in urls]
 #         if not frames:
 #             raise HTTPException(
 #                 status_code=400, detail="Failed to decode image")
@@ -267,7 +267,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 # from fastapi import FastAPI, HTTPException, Query
 
-from services import YoloService, SQSService, load_AWS_env
+from services import YoloService, SQSService, S3Service, load_AWS_env
 
 # from modules.models import ARequest, AResponse, AlertsRequest, AlertsResponse, YoloData
 from modules import metrics_tracker
@@ -275,15 +275,18 @@ from modules import metrics_tracker
 load_AWS_env(secret_name='ILG-YOLO-SQS')
 
 yolo_service = YoloService()
-
 queue_for_yolo_url = os.getenv('queue_for_yolo_url')
 queue_for_backend_url = os.getenv('queue_for_backend_url')
+bucket_name = os.getenv('bucket_name')
+images_folder = os.getenv('images_folder')
 region = os.getenv('region')
+s3Service = S3Service(Bucket=bucket_name, Folder=images_folder, region=region)
 
 SqsService = SQSService(
     region=region,
     data_for_queue_url=queue_for_yolo_url,
     backend_queue_url=queue_for_backend_url,
+    S3Service=s3Service,
     yolo_service=yolo_service,
 )
 
