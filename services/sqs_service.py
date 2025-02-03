@@ -107,11 +107,6 @@ class SQSService:
 
             camera_data = Alert_body.camera_data
             frames = await asyncio.gather(*[self.S3Service.fetch_image(key=url) for url in Alert_body.snapshots], return_exceptions=True)
-            for frame in frames:
-                cv2.imshow("Slideshow", frame)
-                cv2.waitKey(500)
-
-            cv2.destroyAllWindows() 
 
             if not all(isinstance(frame, np.ndarray) for frame in frames):
                 self.logger.warning(f"❌ Expired or invalid image URLs")
@@ -123,7 +118,9 @@ class SQSService:
 
             mask = MaskService.create_combined_mask(
                 frames[0].shape, camera_data.masks, camera_data.is_focus)
-            if len(frames) > 1 and isinstance(mask, np.ndarray):
+
+            # if len(frames) > 1 and isinstance(mask, np.ndarray):
+            if len(frames) > 1:
                 test_mask_time = datetime.now()
                 is_def, mask, color_mask = MaskService.detect_significant_movement(
                     frames, mask, mask_with_movement=True)
@@ -136,6 +133,13 @@ class SQSService:
                     detection_happened = False
                     await metrics_tracker.add_processing_time((datetime.now() - start_time).total_seconds(), detection_happened)
                     return
+            # for frame in frames:
+            #     cv2.imshow("Slideshow", frame)
+            #     cv2.waitKey(500)
+            # cv2.destroyAllWindows()
+
+            # cv2.imwrite("color_mask.jpg", color_mask)
+            # input("stop to view the color_mask:")
 
             yolo_data = YoloData(
                 image=frames, confidence=camera_data.confidence, classes=camera_data.classes)

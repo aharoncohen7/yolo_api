@@ -77,7 +77,8 @@ class MaskService:
                     # if not (i + j) % 2 == 0
                 ]
 
-                if any(0 <= x < mask.shape[1] and 0 <= y < mask.shape[0] and mask[int(y), int(x)] > 0 for x, y in points) and (x2-x1 > min_x) and (y2-y1 > min_y):
+                # if any(0 <= x < mask.shape[1] and 0 <= y < mask.shape[0] and mask[int(y), int(x)] > 0 for x, y in points) and (x2-x1 > min_x) and (y2-y1 > min_y):
+                if any(0 <= x < img_x and 0 <= y < img_y and (not isinstance(mask, np.ndarray) or mask[int(y), int(x)] > 0) for x, y in points):
                     ret_detections.append(detect)
 
             return ret_detections
@@ -185,7 +186,7 @@ class MaskService:
         base_threshold = noise_threshold + int(sensitivity * 50)
         blur_kernel_size = max(int(15 * blur_strength), 3)
         if blur_kernel_size % 2 == 0:
-            blur_kernel_size += 1  # חייב להיות אי-זוגי
+            blur_kernel_size += 1
 
         motion_accumulator = np.zeros(frames[0].shape[:2], dtype=np.float32)
         prev_motion = np.zeros_like(motion_accumulator)
@@ -203,6 +204,8 @@ class MaskService:
 
             # חישוב הפרש
             diff = cv2.absdiff(frame1_blur, frame2_blur)
+            # cv2.imwrite("diff.jpg", diff)
+            # input("stop to view the diff")
 
             # סינון רעש דינמי
             mean_intensity = np.mean(diff)
@@ -225,6 +228,13 @@ class MaskService:
             )
 
             prev_motion = smoothed_motion
+            # for diff in 2 frames
+            # cv2.imwrite("prev_motion.jpg", prev_motion)
+            # input("stop to view the prev_motion")
+
+        # for diff in 2 frames
+        # cv2.imwrite("motion_accumulator.jpg", motion_accumulator)
+        # input("stop to view the motion_accumulator")
 
         return motion_accumulator.astype(np.uint8)
 
@@ -232,12 +242,12 @@ class MaskService:
     def detect_significant_movement(
         frames: List[np.ndarray],
         mask: np.ndarray = None,
-        sensitivity: float = 0.7,
-        min_area: int = 550,
+        sensitivity: float = 1,
+        min_area: int = 1,
         box_padding: int = 3,
-        noise_threshold: int = 45,
-        blur_strength: float = 3.0,
-        temporal_smoothing: float = 0.7,
+        noise_threshold: int = 1,
+        blur_strength: float = 0,
+        temporal_smoothing: float = 0,
         mask_with_movement: bool = False
     ) -> Tuple[bool, np.ndarray, np.ndarray]:
         """
@@ -277,8 +287,10 @@ class MaskService:
         ]
 
         binary_mask, color_mask = MaskService._create_bbox_masks(
-            valid_contours, frames[0].shape, box_padding, ret_color=True
+            valid_contours, frames[0].shape, box_padding, True
         )
+        # cv2.imwrite("color_mask1.jpg", color_mask)
+        # input("stop to view the color_mask:")
 
         # cv2.imwrite('test.jpg', color_mask)
         if mask_with_movement:
