@@ -49,6 +49,9 @@ class S3Service:
             cls._instance.S3 = None
         return cls._instance
 
+    async def initialize(self):
+        self.S3 = await self.session.client('s3').__aenter__()
+
     async def _get_s3_client(self):
         """וודא שה- S3 client פתוח ונשאר פתוח לכל הקריאות"""
         if self.S3 is None:
