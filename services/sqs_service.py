@@ -139,6 +139,7 @@ class SQSService:
             # cv2.destroyAllWindows()
 
 
+
             # cv2.imwrite("color_mask.jpg", color_mask)
             # input("stop to view the color_mask:")
 
