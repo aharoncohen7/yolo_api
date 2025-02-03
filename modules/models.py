@@ -4,7 +4,7 @@ import numpy as np
 from typing import Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class Coordinates(BaseModel):
@@ -27,6 +27,17 @@ class Xyxy(BaseModel):
     @field_validator("x1", "y1", "x2", "y2", mode="before")
     def round_to_three_decimals(cls, value):
         return round(value, 3)
+
+    @model_validator(mode="after")
+    def validate_bbox(cls, values):
+        if values.x1 >= values.x2 or values.y1 >= values.y2:
+            raise ValueError("Invalid bounding box: x1 must be < x2 and y1 must be < y2")
+        return values
+
+    def update(self, **kwargs):
+        updated_data = self.model_dump()
+        updated_data.update(kwargs)
+        return self.model_validate(updated_data)
 
 
 class YoloData(BaseModel):
