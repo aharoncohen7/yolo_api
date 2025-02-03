@@ -31,7 +31,8 @@ class Xyxy(BaseModel):
     @model_validator(mode="after")
     def validate_bbox(cls, values):
         if values.x1 >= values.x2 or values.y1 >= values.y2:
-            raise ValueError("Invalid bounding box: x1 must be < x2 and y1 must be < y2")
+            raise ValueError(
+                "Invalid bounding box: x1 must be < x2 and y1 must be < y2")
         return values
 
     def update(self, **kwargs):
@@ -50,7 +51,7 @@ class YoloData(BaseModel):
 
 
 class CameraData(BaseModel):
-    classes: List[int] = [0, 2]
+    classes: List[int] = [0, 1, 2, 3, 5, 7]
     confidence: float = 0.35
     masks: Optional[List[Shape]] = []
     is_focus: bool = True
