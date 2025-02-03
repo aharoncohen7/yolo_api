@@ -47,8 +47,8 @@ class MaskService:
         detections: List[Detection],
         mask: np.ndarray,
         shape: List[int],
-        min_x: int = 15,
-        min_y: int = 15
+        min_x: int = 10,
+        min_y: int = 10
     ) -> List[Detection]:
         """
         Filters detections based on whether their center is inside the provided mask.
@@ -70,15 +70,24 @@ class MaskService:
             for detect in detections:
                 x1, x2, y1, y2 = detect.bbox.x1, detect.bbox.x2, detect.bbox.y1, detect.bbox.y2
 
+                x1, x2 = max(0, min(x1, img_x - 1)), max(0, min(x2, img_x - 1))
+                y1, y2 = max(0, min(y1, img_y - 1)), max(0, min(y2, img_y - 1))
+
                 points = [
-                    (int(x * img_x), int(y * img_y))
+                    # (int(x * img_x), int(y * img_y))
+                    (int(x), int(y))
                     for i, x in enumerate([x1, (x1 + x2) / 2, x2])
                     for j, y in enumerate([y1, (y1 + y2) / 2, y2])
-                    # if not (i + j) % 2 == 0
+                    if not (i + j) % 2 == 0
                 ]
 
                 # if any(0 <= x < mask.shape[1] and 0 <= y < mask.shape[0] and mask[int(y), int(x)] > 0 for x, y in points) and (x2-x1 > min_x) and (y2-y1 > min_y):
-                if any(0 <= x < img_x and 0 <= y < img_y and (not isinstance(mask, np.ndarray) or mask[int(y), int(x)] > 0) for x, y in points):
+                if (x2-x1 > min_x) and (y2-y1 > min_y):
+                    if isinstance(mask, np.ndarray) and not any((mask[int(y), int(x)] > 0) for x, y in points):
+                        continue
+
+                    detect.bbox = detect.bbox.update(
+                        x1=x1/img_x, y1=y1/img_y, x2=x2/img_x, y2=y2/img_y)
                     ret_detections.append(detect)
 
             return ret_detections
