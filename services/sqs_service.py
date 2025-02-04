@@ -137,7 +137,7 @@ class SQSService:
             #     cv2.imshow("Slideshow", frame)
             #     cv2.waitKey(500)
             # cv2.destroyAllWindows()
-       
+
             # cv2.imwrite("color_mask.jpg", color_mask)
             # input("stop to view the color_mask:")
 
@@ -151,13 +151,13 @@ class SQSService:
 
             detection_happened = False
             if detections and any(detections):
+                mask_key = f'{Alert_body.snapshots[0][:-6]}_3.jpg'
+                await self.S3Service.upload_image(key=mask_key, image=color_mask)
+                Alert_body.snapshots.append(mask_key)
                 detection = AlertsResponse(
                     camera_data=Alert_body.without_camera_data(), detections=detections)
                 MaskService.print_results(detections)
                 await self.send_Alert(detection)
-                # mask_key = f'{Alert_body.snapshots[0][:-6]}_4'
-                # await self.S3Service.upload_image(key=mask_key, image=color_mask)
-                # Alert_body.snapshots.append(mask_key)
                 detection_happened = True
             else:
                 if detection_result and any(detection_result):
