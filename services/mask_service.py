@@ -2,7 +2,7 @@ from collections import defaultdict
 import cv2
 import shutil
 import numpy as np
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from modules import Detection, Shape, Xyxy
 
@@ -94,104 +94,293 @@ class MaskService:
 
         return detections
 
+    # def _validate_inputs(frames: List[np.ndarray], mask: np.ndarray = None) -> None:
+    #     """
+    #     Validate input frames and mask.
+
+    #     Args:
+    #         frames: List of input frames
+    #         mask: Optional binary mask
+
+    #     Raises:
+    #         ValueError: If inputs are invalid
+    #     """
+    #     if len(frames) < 2:
+    #         raise ValueError("At least two frames are required")
+
+    #     frame_shape = frames[0].shape
+    #     if not all(frame.shape == frame_shape for frame in frames):
+    #         raise ValueError("All frames must have the same shape")
+
+    #     if isinstance(mask, np.ndarray) and mask.shape[:2] != frame_shape[:2]:
+    #         raise ValueError("Mask shape must match frame shape")
+
+    # def _is_valid_contour(contour: np.ndarray, mask: np.ndarray, min_area: int) -> bool:
+    #     """
+    #     Check if contour is valid based on area and mask.
+
+    #     Args:
+    #         contour: Contour to check
+    #         mask: Binary mask for validation
+    #         min_area: Minimum area threshold
+
+    #     Returns:
+    #         Boolean indicating if contour is valid
+    #     """
+    #     if cv2.contourArea(contour) < min_area:
+    #         return False
+
+    #     if isinstance(mask, np.ndarray):
+    #         M = cv2.moments(contour)
+    #         if M["m00"] == 0:
+    #             return False
+    #         cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+    #         if not (0 <= cy < mask.shape[0] and 0 <= cx < mask.shape[1] and mask[cy, cx] == 1):
+    #             return False
+
+    #     return True
+
+    # def _create_bbox_masks(contours: List[np.ndarray], frame_shape: Tuple[int, ...],
+    #                        box_padding: int, ret_color: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+    #     """
+    #     Create binary and color masks from contours using bounding boxes.
+
+    #     Args:
+    #         contours: List of valid contours
+    #         frame_shape: Shape of the frame
+    #         box_padding: Padding for bounding boxes
+
+    #     Returns:
+    #         Tuple of (binary_mask, color_mask)
+    #     """
+    #     height, width = frame_shape[:2]
+    #     binary_mask = np.zeros((height, width), dtype=np.uint8)
+    #     color_mask = np.zeros((height, width, 3),
+    #                           dtype=np.uint8) if ret_color else None
+
+    #     for contour in contours:
+    #         x, y, w, h = cv2.boundingRect(contour)
+    #         x1 = max(0, x - box_padding)
+    #         y1 = max(0, y - box_padding)
+    #         x2 = min(width, x + w + box_padding)
+    #         y2 = min(height, y + h + box_padding)
+
+    #         cv2.rectangle(binary_mask, (x1, y1), (x2, y2), 1, -1)
+    #         if ret_color:
+    #             cv2.rectangle(color_mask, (x1, y1), (x2, y2), (0, 255, 0), -1)
+
+    #     return binary_mask, color_mask if ret_color else binary_mask
+
+    # def _create_motion_accumulator(
+    #     frames: List[np.ndarray],
+    #     sensitivity: float,
+    #     noise_threshold: int = 15,
+    #     blur_strength: float = 1.0,
+    #     temporal_smoothing: float = 0.5
+    # ) -> np.ndarray:
+    #     """
+    #     יצירת מסכת תנועה משופרת עם פרמטרים נוספים לשליטה.
+
+    #     Args:
+    #         frames: רשימת פריימים
+    #         sensitivity: רגישות זיהוי תנועה (0.0 עד 1.0)
+    #         noise_threshold: סף לסינון רעש (ערכים נמוכים יותר = רגישות גבוהה יותר)
+    #         blur_strength: עוצמת הטשטוש (1.0 = רגיל, גבוה יותר = טשטוש חזק יותר)
+    #         temporal_smoothing: החלקה זמנית בין פריימים (0.0 עד 1.0)
+
+    #     Returns:
+    #         מסכת תנועה מצטברת
+    #     """
+    #     # חישוב ערכי סף דינמיים
+    #     base_threshold = noise_threshold + int(sensitivity * 50)
+    #     blur_kernel_size = max(int(15 * blur_strength), 3)
+    #     if blur_kernel_size % 2 == 0:
+    #         blur_kernel_size += 1
+
+    #     motion_accumulator = np.zeros(frames[0].shape[:2], dtype=np.float32)
+    #     prev_motion = np.zeros_like(motion_accumulator)
+
+    #     for i in range(len(frames) - 1):
+    #         # המרה לגווני אפור לפני חישוב ההפרש
+    #         frame1_gray = cv2.cvtColor(frames[i], cv2.COLOR_BGR2GRAY)
+    #         frame2_gray = cv2.cvtColor(frames[i + 1], cv2.COLOR_BGR2GRAY)
+
+    #         # טשטוש לפני חישוב ההפרש לסינון רעש
+    #         frame1_blur = cv2.GaussianBlur(
+    #             frame1_gray, (blur_kernel_size, blur_kernel_size), 0)
+    #         frame2_blur = cv2.GaussianBlur(
+    #             frame2_gray, (blur_kernel_size, blur_kernel_size), 0)
+
+    #         # חישוב הפרש
+    #         diff = cv2.absdiff(frame1_blur, frame2_blur)
+    #         # cv2.imwrite("diff.jpg", diff)
+    #         # input("stop to view the diff")
+
+    #         # סינון רעש דינמי
+    #         mean_intensity = np.mean(diff)
+    #         dynamic_threshold = base_threshold + int(mean_intensity * 0.5)
+
+    #         _, binary_diff = cv2.threshold(
+    #             diff, dynamic_threshold, 255, cv2.THRESH_BINARY)
+
+    #         # החלקה זמנית
+    #         current_motion = binary_diff.astype(np.float32)
+    #         smoothed_motion = cv2.addWeighted(
+    #             current_motion, 1 - temporal_smoothing,
+    #             prev_motion, temporal_smoothing, 0
+    #         )
+
+    #         # עדכון המצטבר
+    #         motion_accumulator = cv2.addWeighted(
+    #             motion_accumulator, 0.7,
+    #             smoothed_motion, 0.3, 0
+    #         )
+
+    #         prev_motion = smoothed_motion
+    #         # for diff in 2 frames
+    #         # cv2.imwrite("prev_motion.jpg", prev_motion)
+    #         # input("stop to view the prev_motion")
+
+    #     # for diff in 2 frames
+    #     # cv2.imwrite("motion_accumulator.jpg", motion_accumulator)
+    #     # input("stop to view the motion_accumulator")
+
+    #     return motion_accumulator.astype(np.uint8)
+
+    # @staticmethod
+    # def detect_significant_movement(
+    #     frames: List[np.ndarray],
+    #     mask: np.ndarray = None,
+    #     sensitivity: float = 1,
+    #     min_area: int = 100,
+    #     box_padding: int = 1,
+    #     noise_threshold: int = 1,
+    #     blur_strength: float = 0,
+    #     temporal_smoothing: float = 0,
+    #     mask_with_movement: bool = False
+    # ) -> Tuple[bool, np.ndarray, np.ndarray]:
+    #     """
+    #     זיהוי תנועה משמעותית בפריימים עם פרמטרים נוספים לשליטה.
+
+    #     Args:
+    #         frames: רשימת פריימי קלט (לפחות 2)
+    #         mask: מסכה בינארית אופציונלית להגבלת אזור הזיהוי
+    #         sensitivity: רגישות זיהוי תנועה (0.0 עד 1.0)
+    #         min_area: שטח מינימלי לזיהוי תנועה משמעותית
+    #         box_padding: ריפוד סביב תיבות התנועה שזוהו
+    #         noise_threshold: סף לסינון רעש (ערכים נמוכים יותר = רגישות גבוהה יותר)
+    #         blur_strength: עוצמת הטשטוש (1.0 = רגיל, גבוה יותר = טשטוש חזק יותר)
+    #         temporal_smoothing: החלקה זמנית בין פריימים (0.0 עד 1.0)
+
+    #     Returns:
+    #         Tuple של (has_motion, binary_mask, color_mask):
+    #         - has_motion: בוליאני המציין אם זוהתה תנועה
+    #         - binary_mask: מערך NumPy עם 0 ו-1
+    #         - color_mask: מערך NumPy עם שחור (0,0,0) וירוק (0,255,0)
+    #     """
+    #     MaskService._validate_inputs(frames, mask)
+
+    #     motion_mask = MaskService._create_motion_accumulator(
+    #         frames, sensitivity, noise_threshold, blur_strength, temporal_smoothing
+    #     )
+
+    #     contours, _ = cv2.findContours(
+    #         motion_mask,
+    #         cv2.RETR_EXTERNAL,
+    #         cv2.CHAIN_APPROX_SIMPLE
+    #     )
+
+    #     valid_contours = [
+    #         contour for contour in contours
+    #         if MaskService._is_valid_contour(contour, mask, min_area)
+    #     ]
+
+    #     binary_mask, color_mask = MaskService._create_bbox_masks(
+    #         valid_contours, frames[0].shape, box_padding, True
+    #     )
+    #     # cv2.imwrite("color_mask1.jpg", color_mask)
+    #     # input("stop to view the color_mask:")
+
+    #     # cv2.imwrite('test.jpg', color_mask)
+    #     if mask_with_movement:
+    #         if isinstance(mask, np.ndarray):
+    #             binary_mask = cv2.bitwise_and(mask, binary_mask)
+    #     else:
+    #         binary_mask = mask
+
+    #     return bool(valid_contours), binary_mask, color_mask
+
+    @staticmethod
     def _validate_inputs(frames: List[np.ndarray], mask: np.ndarray = None) -> None:
-        """
-        Validate input frames and mask.
-
-        Args:
-            frames: List of input frames
-            mask: Optional binary mask
-
-        Raises:
-            ValueError: If inputs are invalid
-        """
         if len(frames) < 2:
             raise ValueError("At least two frames are required")
-
         frame_shape = frames[0].shape
         if not all(frame.shape == frame_shape for frame in frames):
             raise ValueError("All frames must have the same shape")
-
         if isinstance(mask, np.ndarray) and mask.shape[:2] != frame_shape[:2]:
             raise ValueError("Mask shape must match frame shape")
 
-    def _is_valid_contour(contour: np.ndarray, mask: np.ndarray, min_area: int) -> bool:
+    @staticmethod
+    def _adaptive_normalize(frame: np.ndarray) -> np.ndarray:
         """
-        Check if contour is valid based on area and mask.
-
-        Args:
-            contour: Contour to check
-            mask: Binary mask for validation
-            min_area: Minimum area threshold
-
-        Returns:
-            Boolean indicating if contour is valid
+        נרמול תאורה אדפטיבי באמצעות CLAHE
         """
-        if cv2.contourArea(contour) < min_area:
-            return False
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
 
-        if isinstance(mask, np.ndarray):
-            M = cv2.moments(contour)
-            if M["m00"] == 0:
-                return False
-            cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
-            if not (0 <= cy < mask.shape[0] and 0 <= cx < mask.shape[1] and mask[cy, cx] == 1):
-                return False
+        # שיפור ניגודיות אדפטיבי
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l_equalized = clahe.apply(l)
 
-        return True
+        # שחזור תמונה במרחב צבע מקורי
+        enhanced = cv2.merge((l_equalized, a, b))
+        return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
 
-    def _create_bbox_masks(contours: List[np.ndarray], frame_shape: Tuple[int, ...],
-                           box_padding: int, ret_color: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+    @staticmethod
+    def _calculate_dynamic_noise_threshold(frame: np.ndarray, base_threshold: int) -> int:
         """
-        Create binary and color masks from contours using bounding boxes.
-
-        Args:
-            contours: List of valid contours
-            frame_shape: Shape of the frame
-            box_padding: Padding for bounding boxes
-
-        Returns:
-            Tuple of (binary_mask, color_mask)
+        חישוב סף רעש דינמי בהתבסס על סטטיסטיקות התמונה
         """
-        height, width = frame_shape[:2]
-        binary_mask = np.zeros((height, width), dtype=np.uint8)
-        color_mask = np.zeros((height, width, 3),
-                              dtype=np.uint8) if ret_color else None
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mean_intensity = np.mean(gray)
+        std_dev = np.std(gray)
 
-        for contour in contours:
-            x, y, w, h = cv2.boundingRect(contour)
-            x1 = max(0, x - box_padding)
-            y1 = max(0, y - box_padding)
-            x2 = min(width, x + w + box_padding)
-            y2 = min(height, y + h + box_padding)
+        # התאמת סף דינמי בהתאם לתנאי התאורה
+        if mean_intensity < 50:  # תאורה חלשה
+            return base_threshold + int(std_dev * 1.5)
+        elif mean_intensity > 200:  # תאורה חזקה
+            return base_threshold + int(std_dev * 0.8)
+        return base_threshold + int(std_dev)
 
-            cv2.rectangle(binary_mask, (x1, y1), (x2, y2), 1, -1)
-            if ret_color:
-                cv2.rectangle(color_mask, (x1, y1), (x2, y2), (0, 255, 0), -1)
+    @staticmethod
+    def _apply_advanced_noise_filter(frame: np.ndarray, kernel_size: int) -> np.ndarray:
+        """
+        סינון רעשים מתקדם המשלב מספר טכניקות
+        """
+        # סינון מדיאני לשמירה על קצוות
+        median = cv2.medianBlur(frame, kernel_size)
 
-        return binary_mask, color_mask if ret_color else binary_mask
+        # סינון דו-צדדי לשמירה על פרטים
+        bilateral = cv2.bilateralFilter(median, kernel_size, 75, 75)
 
+        return bilateral
+
+    @staticmethod
     def _create_motion_accumulator(
         frames: List[np.ndarray],
         sensitivity: float,
         noise_threshold: int = 15,
         blur_strength: float = 1.0,
-        temporal_smoothing: float = 0.5
+        temporal_smoothing: float = 0.5,
+        use_background_subtraction: bool = False
     ) -> np.ndarray:
         """
-        יצירת מסכת תנועה משופרת עם פרמטרים נוספים לשליטה.
-
-        Args:
-            frames: רשימת פריימים
-            sensitivity: רגישות זיהוי תנועה (0.0 עד 1.0)
-            noise_threshold: סף לסינון רעש (ערכים נמוכים יותר = רגישות גבוהה יותר)
-            blur_strength: עוצמת הטשטוש (1.0 = רגיל, גבוה יותר = טשטוש חזק יותר)
-            temporal_smoothing: החלקה זמנית בין פריימים (0.0 עד 1.0)
-
-        Returns:
-            מסכת תנועה מצטברת
+        יצירת מסכת תנועה משופרת עם מנגנונים מתקדמים
         """
-        # חישוב ערכי סף דינמיים
+        # נרמול כל הפריימים
+        normalized_frames = [
+            MaskService._adaptive_normalize(frame) for frame in frames]
+
         base_threshold = noise_threshold + int(sensitivity * 50)
         blur_kernel_size = max(int(15 * blur_strength), 3)
         if blur_kernel_size % 2 == 0:
@@ -200,113 +389,169 @@ class MaskService:
         motion_accumulator = np.zeros(frames[0].shape[:2], dtype=np.float32)
         prev_motion = np.zeros_like(motion_accumulator)
 
-        for i in range(len(frames) - 1):
-            # המרה לגווני אפור לפני חישוב ההפרש
-            frame1_gray = cv2.cvtColor(frames[i], cv2.COLOR_BGR2GRAY)
-            frame2_gray = cv2.cvtColor(frames[i + 1], cv2.COLOR_BGR2GRAY)
+        if use_background_subtraction:
+            back_subtractor = cv2.createBackgroundSubtractorMOG2(
+                history=len(frames),
+                varThreshold=16,
+                detectShadows=True
+            )
 
-            # טשטוש לפני חישוב ההפרש לסינון רעש
-            frame1_blur = cv2.GaussianBlur(
-                frame1_gray, (blur_kernel_size, blur_kernel_size), 0)
-            frame2_blur = cv2.GaussianBlur(
-                frame2_gray, (blur_kernel_size, blur_kernel_size), 0)
+        for i in range(len(normalized_frames) - 1):
+            frame1_gray = cv2.cvtColor(
+                normalized_frames[i], cv2.COLOR_BGR2GRAY)
+            frame2_gray = cv2.cvtColor(
+                normalized_frames[i + 1], cv2.COLOR_BGR2GRAY)
 
-            # חישוב הפרש
-            diff = cv2.absdiff(frame1_blur, frame2_blur)
-            # cv2.imwrite("diff.jpg", diff)
-            # input("stop to view the diff")
+            # סינון רעשים מתקדם
+            frame1_filtered = MaskService._apply_advanced_noise_filter(
+                frame1_gray, blur_kernel_size)
+            frame2_filtered = MaskService._apply_advanced_noise_filter(
+                frame2_gray, blur_kernel_size)
 
-            # סינון רעש דינמי
-            mean_intensity = np.mean(diff)
-            dynamic_threshold = base_threshold + int(mean_intensity * 0.5)
+            if use_background_subtraction:
+                fg_mask1 = back_subtractor.apply(frame1_filtered)
+                fg_mask2 = back_subtractor.apply(frame2_filtered)
+                diff = cv2.absdiff(fg_mask1, fg_mask2)
+            else:
+                diff = cv2.absdiff(frame1_filtered, frame2_filtered)
+
+            # חישוב סף דינמי
+            dynamic_threshold = MaskService._calculate_dynamic_noise_threshold(
+                normalized_frames[i], base_threshold)
 
             _, binary_diff = cv2.threshold(
                 diff, dynamic_threshold, 255, cv2.THRESH_BINARY)
 
-            # החלקה זמנית
+            # החלקה מרחבית
+            binary_diff = cv2.morphologyEx(binary_diff, cv2.MORPH_CLOSE,
+                                           np.ones((3, 3), np.uint8))
+
             current_motion = binary_diff.astype(np.float32)
+
+            # החלקה זמנית
             smoothed_motion = cv2.addWeighted(
                 current_motion, 1 - temporal_smoothing,
                 prev_motion, temporal_smoothing, 0
             )
 
-            # עדכון המצטבר
             motion_accumulator = cv2.addWeighted(
                 motion_accumulator, 0.7,
                 smoothed_motion, 0.3, 0
             )
 
             prev_motion = smoothed_motion
-            # for diff in 2 frames
-            # cv2.imwrite("prev_motion.jpg", prev_motion)
-            # input("stop to view the prev_motion")
-
-        # for diff in 2 frames
-        # cv2.imwrite("motion_accumulator.jpg", motion_accumulator)
-        # input("stop to view the motion_accumulator")
 
         return motion_accumulator.astype(np.uint8)
 
     @staticmethod
+    def _is_valid_contour(
+        contour: np.ndarray,
+        mask: np.ndarray,
+        min_area: int,
+        frame_shape: Tuple[int, ...]
+    ) -> bool:
+        """
+        בדיקת תקינות מורחבת של קונטור
+        """
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            return False
+
+        # חישוב יחס אספקט ומורכבות הקונטור
+        _, _, w, h = cv2.boundingRect(contour)
+        aspect_ratio = float(w)/h if h > 0 else 0
+        if aspect_ratio > 5 or aspect_ratio < 0.2:  # סינון קונטורים לא סבירים
+            return False
+
+        if isinstance(mask, np.ndarray):
+            M = cv2.moments(contour)
+            if M["m00"] == 0:
+                return False
+
+            cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+            if 0 <= cy < mask.shape[0] and 0 <= cx < mask.shape[1]:
+                return mask[cy, cx] == 1
+
+        return True
+
+    @staticmethod
     def detect_significant_movement(
         frames: List[np.ndarray],
-        mask: np.ndarray = None,
-        sensitivity: float = 1,
+        mask: Optional[np.ndarray] = None,
+        sensitivity: float = 1.0,
         min_area: int = 100,
-        box_padding: int = 1,
-        noise_threshold: int = 1,
+        box_padding: int = 3,
+        noise_threshold: int = 15,
         blur_strength: float = 0,
         temporal_smoothing: float = 0,
-        mask_with_movement: bool = False
+        mask_with_movement: bool = False,
+        use_background_subtraction: bool = False
     ) -> Tuple[bool, np.ndarray, np.ndarray]:
         """
-        זיהוי תנועה משמעותית בפריימים עם פרמטרים נוספים לשליטה.
+        זיהוי תנועה משמעותית עם יכולות מתקדמות
 
         Args:
-            frames: רשימת פריימי קלט (לפחות 2)
-            mask: מסכה בינארית אופציונלית להגבלת אזור הזיהוי
-            sensitivity: רגישות זיהוי תנועה (0.0 עד 1.0)
-            min_area: שטח מינימלי לזיהוי תנועה משמעותית
-            box_padding: ריפוד סביב תיבות התנועה שזוהו
-            noise_threshold: סף לסינון רעש (ערכים נמוכים יותר = רגישות גבוהה יותר)
-            blur_strength: עוצמת הטשטוש (1.0 = רגיל, גבוה יותר = טשטוש חזק יותר)
-            temporal_smoothing: החלקה זמנית בין פריימים (0.0 עד 1.0)
+            frames: רשימת פריימים (3 פריימים בהפרש של 2 שניות)
+            mask: מסכה אופציונלית להגבלת אזור החיפוש
+            sensitivity: רגישות הזיהוי (0.0 עד 1.0)
+            min_area: שטח מינימלי לתנועה משמעותית
+            box_padding: ריפוד סביב אזורי תנועה
+            noise_threshold: סף בסיסי לסינון רעשים
+            blur_strength: עוצמת הטשטוש (1.0 = רגיל)
+            temporal_smoothing: מקדם החלקה זמנית (0.0 עד 1.0)
+            mask_with_movement: האם להחזיר מסכה משולבת
+            use_background_subtraction: שימוש בהפחתת רקע
 
         Returns:
-            Tuple של (has_motion, binary_mask, color_mask):
-            - has_motion: בוליאני המציין אם זוהתה תנועה
-            - binary_mask: מערך NumPy עם 0 ו-1
-            - color_mask: מערך NumPy עם שחור (0,0,0) וירוק (0,255,0)
+            Tuple של (has_motion, binary_mask, color_mask)
         """
         MaskService._validate_inputs(frames, mask)
 
+        # יצירת מסכת תנועה עם כל השיפורים
         motion_mask = MaskService._create_motion_accumulator(
-            frames, sensitivity, noise_threshold, blur_strength, temporal_smoothing
+            frames,
+            sensitivity,
+            noise_threshold,
+            blur_strength,
+            temporal_smoothing,
+            use_background_subtraction
         )
 
+        # מציאת קונטורים
         contours, _ = cv2.findContours(
             motion_mask,
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE
         )
 
+        # סינון קונטורים עם בדיקות מורחבות
         valid_contours = [
             contour for contour in contours
-            if MaskService._is_valid_contour(contour, mask, min_area)
+            if MaskService._is_valid_contour(
+                contour, mask, min_area, frames[0].shape
+            )
         ]
 
-        binary_mask, color_mask = MaskService._create_bbox_masks(
-            valid_contours, frames[0].shape, box_padding, True
-        )
-        # cv2.imwrite("color_mask1.jpg", color_mask)
-        # input("stop to view the color_mask:")
+        # יצירת מסכות פלט
+        height, width = frames[0].shape[:2]
+        binary_mask = np.zeros((height, width), dtype=np.uint8)
+        color_mask = np.zeros((height, width, 3), dtype=np.uint8)
 
-        # cv2.imwrite('test.jpg', color_mask)
-        if mask_with_movement:
-            if isinstance(mask, np.ndarray):
+        for contour in valid_contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            x1 = max(0, x - box_padding)
+            y1 = max(0, y - box_padding)
+            x2 = min(width, x + w + box_padding)
+            y2 = min(height, y + h + box_padding)
+
+            cv2.rectangle(binary_mask, (x1, y1), (x2, y2), 1, -1)
+            cv2.rectangle(color_mask, (x1, y1), (x2, y2), (0, 255, 0), -1)
+
+        if isinstance(mask, np.ndarray):
+            if mask_with_movement:
                 binary_mask = cv2.bitwise_and(mask, binary_mask)
-        else:
-            binary_mask = mask
+            else:
+                binary_mask = mask
 
         return bool(valid_contours), binary_mask, color_mask
 
