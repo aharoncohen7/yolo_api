@@ -48,21 +48,21 @@ jobs:
             sudo systemctl restart yolo_api.service
           EOF
 
-  # health-check:
-  #   needs: build-and-deploy
-  #   runs-on: ubuntu-latest
+  health-check:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Perform Health Check
-  #       run: |
-  #         for i in {1..3}; do
-  #           if curl --silent --output /dev/null --write-out "%{http_code}" http://${{ secrets.SERVER_HOST }}:8000/health | grep -q "200"; then
-  #             echo "Health check passed!"
-  #             exit 0
-  #           else
-  #             echo "Health check failed. Retrying in 5 seconds..."
-  #             sleep 5
-  #           fi
-  #         done
-  #         echo "Health check failed after multiple attempts."
-  #         exit 1
+    steps:
+      - name: Perform Health Check
+        run: |
+          for i in {1..3}; do
+            if curl --silent --output /dev/null --write-out "%{http_code}" http://${{ secrets.SERVER_HOST }}:8000/health | grep -q "200"; then
+              echo "Health check passed!"
+              exit 0
+            else
+              echo "Health check failed. Retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+          echo "Health check failed after multiple attempts."
+          exit 1

@@ -263,9 +263,8 @@ import os
 # from typing import Dict, Optional, Union
 import uvicorn
 import asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from contextlib import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
 # from fastapi import FastAPI, HTTPException, Query
 
 from services import YoloService, SQSService, S3Service, load_AWS_env
@@ -308,22 +307,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="YOLO Detection Service", lifespan=lifespan)
 
-origins = [
-    # f"http://{local_coll}",
-    "https://github.com",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET"],
-    allow_headers=["*"],
-)
-
 
 @app.get("/health")
-async def get_metric():
+async def get_metric(request: Request):
+    allowed_origins = [
+        "https://github.com",
+        # f"http://{local_coll}"
+    ]
+    origin = request.headers.get("origin")
+
+    print(f"🔍 Origin: {origin}")
+    if not origin or origin not in allowed_origins:
+        raise HTTPException(status_code=403, detail="CORS blocked")
+
     metrics = metrics_tracker.calculate_metrics()
     return {"data": metrics, "status": 'healthy'}
 
