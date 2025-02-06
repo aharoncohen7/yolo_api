@@ -280,7 +280,7 @@ yolo_service = YoloService()
 queue_for_yolo_url = os.getenv('queue_for_yolo_url')
 queue_for_backend_url = os.getenv('queue_for_backend_url')
 bucket_name = os.getenv('bucket_name')
-local_coll = os.getenv('local_coll')
+# local_coll = os.getenv('local_coll')
 images_folder = os.getenv('images_folder')
 region = os.getenv('region')
 
