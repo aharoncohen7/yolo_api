@@ -265,6 +265,7 @@ import uvicorn
 import asyncio
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 # from fastapi import FastAPI, HTTPException, Query
 
 from services import YoloService, SQSService, S3Service, load_AWS_env
@@ -275,11 +276,14 @@ from modules import metrics_tracker
 load_AWS_env(secret_name='ILG-YOLO-SQS')
 
 yolo_service = YoloService()
+
 queue_for_yolo_url = os.getenv('queue_for_yolo_url')
 queue_for_backend_url = os.getenv('queue_for_backend_url')
 bucket_name = os.getenv('bucket_name')
+local_coll = os.getenv('local_coll')
 images_folder = os.getenv('images_folder')
 region = os.getenv('region')
+
 s3Service = S3Service(Bucket=bucket_name, Folder=images_folder, region=region)
 
 SqsService = SQSService(
@@ -303,6 +307,19 @@ async def lifespan(app: FastAPI):
         task.cancel()
 
 app = FastAPI(title="YOLO Detection Service", lifespan=lifespan)
+
+origins = [
+    # f"http://{local_coll}",
+    "https://github.com",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
