@@ -166,6 +166,7 @@ class SQSService:
                 else:
                     self.logger.info(f"🚶 Movement but No detection")
                     await metrics_tracker.update('no_detection')
+                    
 
             await self.delete_Alert(Alert['ReceiptHandle'])
             await metrics_tracker.process_detection_time(Alert_body.event_time, start_time)
